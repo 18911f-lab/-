@@ -3,3 +3,5 @@ Thumbs.db
 *.log
 .vscode/
 remove_bg*.ps1
+generate-items.js
+assets/gomi-assets/
