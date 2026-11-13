@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="ja">
 <head>
   <meta charset="utf-8">
@@ -8,7 +8,6 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="style.css?v=wide_10">
-  <link rel="stylesheet" href="zukan_extra.css?v=zk_1">
 </head>
 <body>
   <div id="game-wrapper">
@@ -208,10 +207,8 @@
           </div>
           <div class="title-action-buttons">
             <button id="start-btn" class="pixel-btn pixel-btn-green">▶ GAME START (SPACE)</button>
-            <button id="tutorial-btn" class="pixel-btn pixel-btn-cyan">🔰 チュートリアル</button>
             <button id="zukan-btn" class="pixel-btn pixel-btn-blue">📖 ゴミ図鑑</button>
             <button id="shop-btn" class="pixel-btn pixel-btn-yellow">🌳 スキルツリー</button>
-            <button id="equip-btn" class="pixel-btn pixel-btn-purple">🎒 装備編集</button>
           </div>
           <div class="title-stats-footer">
             <span>🏆 HIGH SCORE: <strong id="title-high-score">000000</strong></span>
@@ -277,21 +274,6 @@
             <div class="next-box">?</div>
             <div class="next-box">?</div>
           </div>
-        </div>
-
-        <!-- チュートリアル案内バナー（チュートリアル時のみ表示） -->
-        <div id="tutorial-banner" class="tutorial-banner hidden">
-          <div class="tutorial-banner-content">
-            <span class="tutorial-badge">🔰 チュートリアル</span>
-            <span id="tutorial-step-text" class="tutorial-step-text">バナナの皮は「可燃ごみ」！ [Q] を押してみよう！</span>
-          </div>
-          <button id="tutorial-skip-btn" class="tutorial-skip-btn" title="チュートリアルを終了してタイトルへ">スキップ ✕</button>
-        </div>
-
-        <!-- ステージ開始カウントダウンオーバーレイ -->
-        <div id="countdown-overlay" class="countdown-overlay hidden">
-          <div class="countdown-stage-banner" id="countdown-stage-banner">STAGE 1: スクランブル交差点</div>
-          <div class="countdown-main-num" id="countdown-main-num">3</div>
         </div>
 
         <!-- 中央：出現ゴミステージ -->
@@ -372,7 +354,6 @@
           <div id="death-cause" class="result-cause-box">
             テレビを可燃ごみに突っ込んで渋谷が焦土と化した！
           </div>
-          <div id="death-lesson" class="lesson-box hidden"></div>
           <div class="result-metrics-grid">
             <div class="metric-card">
               <div class="metric-label">FINAL SCORE</div>
@@ -396,19 +377,6 @@
         </div>
       </div>
 
-      <!-- ================= モーダル: 装備編集 ================= -->
-      <div id="equip-modal" class="pixel-modal hidden">
-        <div class="pixel-modal-frame" style="max-width:520px;">
-          <div class="modal-top-bar">
-            <span class="modal-heading" style="color:#a78bfa;">🎒 装備編集（レリック）</span>
-            <button class="pixel-close-btn modal-close">✕</button>
-          </div>
-          <div id="equip-modal-body" class="equip-modal-body">
-            <!-- JSで動的生成 -->
-          </div>
-        </div>
-      </div>
-
       <!-- ================= モーダル: ゴミ図鑑 ================= -->
       <div id="zukan-modal" class="pixel-modal hidden">
         <div class="pixel-modal-frame">
@@ -421,7 +389,7 @@
               <span>図鑑達成率: <strong id="zukan-progress-num">0 / 226 (0.0%)</strong></span>
               <div class="achieve-track"><div id="zukan-progress-fill" class="achieve-fill"></div></div>
             </div>
-            <input type="text" id="zukan-search-input" placeholder="🔍 ゴミ名や出し方を検索..." autocomplete="off">
+            <input type="text" id="zukan-search-input" placeholder="🔍 ゴミ名や注記を検索..." autocomplete="off">
             <div class="zukan-tabs-row">
               <button class="filter-chip active" data-cat="all">すべて</button>
               <button class="filter-chip" data-cat="burnable">🔥 可燃</button>
@@ -429,8 +397,6 @@
               <button class="filter-chip" data-cat="resource">♻️ 資源</button>
               <button class="filter-chip" data-cat="oversized">📦 粗大</button>
               <button class="filter-chip" data-cat="dragon">🐲 どらごん</button>
-              <button class="filter-chip" data-cat="weak">⚠️ 苦手</button>
-              <button class="filter-chip" data-cat="unseen">❓ 未遭遇</button>
             </div>
           </div>
           <div id="zukan-list" class="zukan-scroll-body">
@@ -498,26 +464,14 @@
         </div>
       </div>
 
-      <!-- ================= モーダル: チュートリアル詳細解説（ステージ・EP・スキル） ================= -->
-      <div id="tutorial-guide-modal" class="pixel-modal hidden">
-        <div class="pixel-modal-frame" style="max-width: 560px;">
-          <div class="modal-top-bar">
-            <span id="tutorial-guide-heading" class="modal-heading" style="color:#38bdf8;">🔰 ステージ・お宝・スキルツリー</span>
-          </div>
-          <div id="tutorial-guide-body" class="tutorial-modal-card">
-            <!-- JSでステップごとにコンテンツを動的生成 -->
-          </div>
-        </div>
-      </div>
-
-      <!-- ================= モーダル: レリック獲得ドラフト / 固有獲得 ================= -->
+      <!-- ================= モーダル: レリック獲得ドラフト ================= -->
       <div id="relic-draft-modal" class="pixel-modal hidden">
         <div class="pixel-modal-frame relic-draft-frame">
           <div class="modal-top-bar">
-            <span id="relic-modal-title" class="modal-heading" style="color:#5eead4;">🎉 お宝レリックを獲得！</span>
+            <span class="modal-heading" style="color:#5eead4;">🎉 FLOOR CLEAR! レリックを選択</span>
           </div>
           <div class="relic-draft-body">
-            <p id="relic-modal-sub" class="relic-draft-sub">渋谷の清掃活動で役立つ特殊パッシブアイテムを獲得できます（スロットに装備）</p>
+            <p class="relic-draft-sub">渋谷の清掃活動で役立つ特殊パッシブアイテムを獲得できます（スロットに装備）</p>
             <div id="relic-draft-cards" class="relic-draft-cards-row">
               <!-- JSで2〜3枚のカードを生成 -->
             </div>
@@ -547,31 +501,20 @@
         </div>
       </div>
 
-      <!-- ================= モーダル: ヘルプ（あそびかた） ================= -->
+      <!-- ================= モーダル: ヘルプ ================= -->
       <div id="help-modal" class="pixel-modal hidden">
-        <div class="pixel-modal-frame" style="max-height: 480px;">
+        <div class="pixel-modal-frame" style="max-height: 440px;">
           <div class="modal-top-bar">
-            <span class="modal-heading">❓ あそびかた・システム解説</span>
+            <span class="modal-heading">❓ あそびかた</span>
             <button class="pixel-close-btn modal-close">✕</button>
           </div>
-          <div class="help-content-body" style="font-size: 13px; line-height: 1.6; text-align: left; padding: 10px;">
-            <h4 style="color:#5eead4; margin-top:0;">🎯 基本ルール＆操作</h4>
-            <p>画面中央に次々と現れる渋谷のゴミを、制限時間内に正しいゴミ箱へ分別してください！<br>
-            <strong>[Q] 可燃　[W] 不燃　[E] 資源　[R] 粗大　[Space / 5] どらごん</strong></p>
-
-            <h4 style="color:#c084fc; margin-top:10px;">🐲 雑食どらごん（収集不可・危険物）</h4>
-            <p>テレビ・冷蔵庫などの<strong>家電リサイクル品</strong>、消火器・ガソリン・バッテリー等の<strong>危険物</strong>など、「区で収集できないゴミ」はすべて雑食どらごんに食べさせましょう！</p>
-
-            <h4 style="color:#ffd36b; margin-top:10px;">🎁 お宝アイテム（レリック）</h4>
-            <p>・<strong>15問正解ごと</strong>に、3つのレリックから1つを選んで装備！<br>
-            ・<strong>各ステージ（FLOOR）クリア時</strong>には、そのエリア限定の<strong>「固有アイテム」</strong>を確定GET！<br>
-            （左上のスロットに装備され、時間延長やスコアUPなどの特殊効果を発揮します）</p>
-
-            <h4 style="color:#6ee7b7; margin-top:10px;">🌳 スキルツリー（渋谷路線図）</h4>
-            <p>分別で手に入れた<strong>EP（エコポイント）</strong>を使って路線図を開通！ライフ増加やスロット拡張など、永続的なパワーアップが可能です。</p>
-
-            <h4 style="color:#f472b6; margin-top:10px;">👑 目指せ全5ステージ制覇（ALL CLEAR）！</h4>
-            <p>全5つのフロアを突破して、渋谷の街をゴミの山から救い出しましょう！</p>
+          <div class="help-content-body">
+            <h4>🎯 ルール</h4>
+            <p>画面中央に次々と現れる渋谷のゴミを、制限時間内に正しいゴミ箱へ分別してください！</p>
+            <h4>🐲 雑食どらごん</h4>
+            <p>家電リサイクル品（テレビ・冷蔵庫など）、危険物（ガソリン等）、耐火金庫など、「区で収集できないゴミ」はすべて雑食どらごんに食べさせましょう！</p>
+            <h4>⌨️ 操作キー</h4>
+            <p>[Q] 可燃　[W] 不燃　[E] 資源　[R] 粗大　[5またはSpace] どらごん</p>
           </div>
         </div>
       </div>
@@ -580,12 +523,9 @@
   </div>
 
   <!-- スクリプト群 -->
-  <script src="items.js?v=wide_11"></script>
-  <script src="zukan_official.js?v=zk_1"></script>
-  <script src="zukan_lesson.js?v=zk_1"></script>
-  <script src="audio.js?v=wide_11"></script>
-  <script src="relics.js?v=wide_11"></script>
-  <script src="game.js?v=wide_11"></script>
+  <script src="items.js?v=wide_10"></script>
+  <script src="audio.js?v=wide_10"></script>
+  <script src="game.js?v=wide_10"></script>
 </body>
 </html>
 
