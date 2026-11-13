@@ -1,43 +1,6 @@
 // 横画面アーケード版 GomiSortingGame ロジック
 // スキルツリー（渋谷路線図 SKILL LINES） ＆ レリック・アイテムスロット完全対応
-
-const RELIC_DATA = {
-  coin: {
-    id: 'coin',
-    name: '回収員のコイン',
-    icon: 'assets/sprites/png/relic_coin@4x.png',
-    colorClass: 'slot-gold',
-    desc: '分別するたびに回収員からチップ支給！獲得EP+30%＆スコア+10%'
-  },
-  clock: {
-    id: 'clock',
-    name: '渋谷駅の古時計',
-    icon: 'assets/sprites/png/relic_clock@4x.png',
-    colorClass: 'slot-blue',
-    desc: 'ハチ公前時計台の歯車。時間減少速度15%緩和＆正解時回復+0.5秒'
-  },
-  star: {
-    id: 'star',
-    name: '美化スターバッジ',
-    icon: 'assets/sprites/png/relic_star@4x.png',
-    colorClass: 'slot-purple',
-    desc: '輝く美化委員の証。5コンボからフィーバー突入＆フィーバー倍率2.0倍'
-  },
-  broom: {
-    id: 'broom',
-    name: 'エコほうき',
-    icon: 'assets/sprites/png/relic_broom@4x.png',
-    colorClass: 'slot-green',
-    desc: '路地裏を瞬時に清掃！コンボ3回ごとにボーナススコア+100'
-  },
-  dragon_snack: {
-    id: 'dragon_snack',
-    name: 'どらごんの好物',
-    icon: 'assets/sprites/png/dragon_zasshoku@4x.png',
-    colorClass: 'slot-purple',
-    desc: '雑食どらごん大好物のジャンク品！どらごん分別正解時の得点2倍＆時間+3秒'
-  }
-};
+// ※ アイテムデータは relics.js に分離されています
 
 // ================= スキルライン.html 定義データ =================
 const IC = {
@@ -223,17 +186,23 @@ class GomiGame {
 
     // 装備中のレリック（プレイ中のみ保持）
     this.equippedRelics = [];
+    this.correctCountSinceRelic = 0; // 15問正解ごとにドラフト
 
-    // フロア（階層）
+    // チュートリアル状態
+    this.isTutorial = false;
+    this.tutorialStep = 0;
+
+    // フロア（階層）と各ステージクリア目標数
     this.floors = [
       { name: '渋谷駅前スクランブル', count: 10 },
-      { name: '渋谷センター街', count: 20 },
-      { name: '道玄坂路地裏', count: 35 },
-      { name: '宮下パーク屋上', count: 50 },
-      { name: '雑食どらごんの巣', count: 999 }
+      { name: '渋谷センター街', count: 25 },
+      { name: '道玄坂路地裏', count: 45 },
+      { name: '宮下パーク屋上', count: 65 },
+      { name: '雑食どらごんの巣', count: 85 } // 85個達成でALL CLEAR！
     ];
     this.currentFloorIndex = 0;
     this.sortedInRun = 0;
+    this.runMisses = []; // このランで間違えた {item, wrong}
 
     // スキル選択中ノード
     this.selectedSkillId = '1_0';
@@ -274,7 +243,8 @@ class GomiGame {
       points: 600, // 初期ボーナスEP
       highScore: 0,
       skills: ['0_0', '0_1', '1_0', '3_0'], // 初期開通駅
-      zukan: {}
+      zukan: {},
+      tutorialCompleted: false
     };
     try {
       const saved = localStorage.getItem('shibuya_gomi_save_v3');
@@ -364,6 +334,24 @@ class GomiGame {
     this.feedbackPopup = document.getElementById('feedback-popup');
     this.missPopup = document.getElementById('miss-popup');
 
+    // カウントダウン演出
+    this.countdownOverlay = document.getElementById('countdown-overlay');
+    this.countdownStageBanner = document.getElementById('countdown-stage-banner');
+    this.countdownMainNum = document.getElementById('countdown-main-num');
+
+    // チュートリアル
+    this.tutorialBtn = document.getElementById('tutorial-btn');
+    this.tutorialBanner = document.getElementById('tutorial-banner');
+    this.tutorialStepText = document.getElementById('tutorial-step-text');
+    this.tutorialSkipBtn = document.getElementById('tutorial-skip-btn');
+    this.tutorialGuideModal = document.getElementById('tutorial-guide-modal');
+    this.tutorialGuideHeading = document.getElementById('tutorial-guide-heading');
+    this.tutorialGuideBody = document.getElementById('tutorial-guide-body');
+
+    // 装備編集モーダル
+    this.equipModal = document.getElementById('equip-modal');
+    this.equipModalBody = document.getElementById('equip-modal-body');
+
     // スキルツリーSVG & aside
     this.skillSvg = document.getElementById('skill-tree-svg');
     this.skillMapContainer = document.getElementById('skill-map-container');
@@ -373,9 +361,19 @@ class GomiGame {
   bindEvents() {
     // タイトルボタン
     document.getElementById('start-btn').addEventListener('click', () => this.startGame());
+    if (this.tutorialBtn) {
+      this.tutorialBtn.addEventListener('click', () => this.startTutorial());
+    }
+    if (this.tutorialSkipBtn) {
+      this.tutorialSkipBtn.addEventListener('click', () => this.skipTutorial());
+    }
     document.getElementById('zukan-btn').addEventListener('click', () => this.openZukan());
     document.getElementById('shop-btn').addEventListener('click', () => this.openTree());
     document.getElementById('help-btn').addEventListener('click', () => this.openHelp());
+
+    // 装備編集ボタン（タイトル画面）
+    const equipBtn = document.getElementById('equip-btn');
+    if (equipBtn) equipBtn.addEventListener('click', () => this.openEquipModal());
 
     // サウンド切替
     const soundToggle = document.getElementById('sound-toggle');
@@ -410,7 +408,7 @@ class GomiGame {
     // リザルトボタン
     document.getElementById('retry-btn').addEventListener('click', () => this.startGame());
     document.getElementById('share-btn').addEventListener('click', () => this.shareToX());
-    document.getElementById('result-zukan-btn').addEventListener('click', () => this.openZukan());
+    document.getElementById('result-zukan-btn').addEventListener('click', () => this.openZukan(this.runMisses && this.runMisses.length ? 'run' : 'all'));
     document.getElementById('title-btn').addEventListener('click', () => this.showTitleScreen());
 
     // モーダル閉じる
@@ -498,6 +496,17 @@ class GomiGame {
         }
       }
 
+      // リザルト画面でのキー操作（左右矢印で答え合わせスライド切り替え）
+      if (!this.resultScreen.classList.contains('hidden')) {
+        if (e.key === 'ArrowLeft') {
+          const prevBtn = document.getElementById('lesson-prev-btn');
+          if (prevBtn && !prevBtn.disabled) prevBtn.click();
+        } else if (e.key === 'ArrowRight') {
+          const nextBtn = document.getElementById('lesson-next-btn');
+          if (nextBtn && !nextBtn.disabled) nextBtn.click();
+        }
+      }
+
       // ゲーム中
       if (!this.gameScreen.classList.contains('hidden') && !this.isGameOver && !this.isPausedForDraft && !this.isPaused) {
         const key = e.key.toLowerCase();
@@ -520,10 +529,22 @@ class GomiGame {
   updateTitleScreenStats() {
     document.getElementById('title-high-score').textContent = String(this.saveData.highScore).padStart(6, '0');
     document.getElementById('title-points').textContent = this.saveData.points.toLocaleString();
+
+    // チュートリアル未完了の場合はボタンを控えめに光らせて推奨
+    if (this.tutorialBtn) {
+      if (!this.saveData.tutorialCompleted) {
+        this.tutorialBtn.classList.add('tutorial-btn-glow');
+        this.tutorialBtn.textContent = '🔰 チュートリアル (推奨)';
+      } else {
+        this.tutorialBtn.classList.remove('tutorial-btn-glow');
+        this.tutorialBtn.textContent = '🔰 チュートリアル';
+      }
+    }
   }
 
   startGame() {
     window.soundManager.playClick();
+    this.isTutorial = false;
     this.isGameOver = false;
     this.isPausedForDraft = false;
     this.isPaused = false;
@@ -531,6 +552,17 @@ class GomiGame {
     this.combo = 0;
     this.maxCombo = 0;
     this.equippedRelics = []; // 毎回のランで初期化
+    this.correctCountSinceRelic = 0; // 15問正解カウントリセット
+    this.runMisses = [];
+
+    // スキル用フラグの初期化
+    this.hasUsedRevive = false; // 0_7: 始発まで（復活）
+    this.hasUsedFloorFullEat = false; // 4_5: 大食い（フロア捕食）
+    this.hasUsedManpukuShield = false; // 4_4: 満腹ガード
+
+    // チュートリアルバナーを非表示
+    if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
+    document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
 
     // スキルによる初期値
     this.lives = this.hasSkill('0_5') ? 5 : (this.hasSkill('0_0') ? 4 : 3);
@@ -555,8 +587,54 @@ class GomiGame {
     this.updateHUD();
     this.popNextItem();
 
-    // タイマー（100ms周期）
-    this.startTimer();
+    // カウントダウン演出を実行してゲーム開始
+    this.startCountdown(() => {
+      this.startTimer();
+    });
+  }
+
+  // ステージ開始前カウントダウン演出（3, 2, 1, START!）
+  startCountdown(callback) {
+    if (!this.countdownOverlay || !this.countdownMainNum || !this.countdownStageBanner) {
+      if (callback) callback();
+      return;
+    }
+
+    // 操作を一時停止
+    this.isPausedForDraft = true;
+    const floor = this.floors[this.currentFloorIndex];
+    this.countdownStageBanner.textContent = `FLOOR ${this.currentFloorIndex + 1}: ${floor ? floor.name : ''}`;
+    this.countdownOverlay.classList.remove('hidden');
+
+    const steps = ['3', '2', '1', 'START!'];
+    let idx = 0;
+
+    const tick = () => {
+      if (idx < steps.length) {
+        const text = steps[idx];
+        const isStart = (text === 'START!');
+        this.countdownMainNum.textContent = text;
+        this.countdownMainNum.classList.toggle('start', isStart);
+        
+        // 再生アニメーションのリフレッシュ
+        this.countdownMainNum.style.animation = 'none';
+        void this.countdownMainNum.offsetWidth;
+        this.countdownMainNum.style.animation = '';
+
+        if (window.soundManager.playCountdown) {
+          window.soundManager.playCountdown(isStart);
+        }
+
+        idx++;
+        setTimeout(tick, isStart ? 600 : 750);
+      } else {
+        this.countdownOverlay.classList.add('hidden');
+        this.isPausedForDraft = false;
+        if (callback) callback();
+      }
+    };
+
+    tick();
   }
 
   togglePause(forceState = null) {
@@ -586,7 +664,11 @@ class GomiGame {
       if (this.isPausedForDraft || this.isPaused) return;
 
       // 古時計レリック: 時間減少速度15%緩和
-      const timeDeduction = this.hasEquippedRelic('clock') ? (stepMs / 1000) * 0.85 : (stepMs / 1000);
+      let timeDeduction = this.hasEquippedRelic('clock') ? (stepMs / 1000) * 0.85 : (stepMs / 1000);
+      // FLOOR 1 固有: 忠犬の首輪（残り5秒以下で時間減少速度が半減）
+      if (this.timeLeft <= 5.0 && this.hasEquippedRelic('hachiko_collar')) {
+        timeDeduction *= 0.5;
+      }
       this.timeLeft -= timeDeduction;
 
       if (this.timeLeft <= 0) {
@@ -619,12 +701,13 @@ class GomiGame {
     if (!this.relicRow) return;
     const maxSlots = this.getMaxRelicSlots();
     const totalDisplaySlots = 5; // 見た目上5枠表示（未開放枠は鍵アイコン）
+    const relicsMap = window.ALL_RELICS_MAP || window.RELIC_DATA || {};
 
     let html = '';
     for (let i = 0; i < totalDisplaySlots; i++) {
       const isSlotUnlocked = i < maxSlots;
       const equippedRelicId = this.equippedRelics[i];
-      const relic = equippedRelicId ? RELIC_DATA[equippedRelicId] : null;
+      const relic = equippedRelicId ? relicsMap[equippedRelicId] : null;
 
       if (!isSlotUnlocked) {
         html += `
@@ -633,9 +716,10 @@ class GomiGame {
           </div>
         `;
       } else if (relic) {
+        const visualHtml = window.renderRelicVisual ? window.renderRelicVisual(relic) : `<span style="font-size:24px;">${relic.emoji || '✨'}</span>`;
         html += `
-          <div class="relic-slot ${relic.colorClass}" data-relic="${relic.id}">
-            <img src="${relic.icon}" alt="${relic.name}" class="relic-slot-img">
+          <div class="relic-slot ${relic.colorClass || 'slot-gold'}" data-relic="${relic.id}">
+            ${visualHtml}
           </div>
         `;
       } else {
@@ -652,9 +736,11 @@ class GomiGame {
     const slotEls = this.relicRow.querySelectorAll('.relic-slot[data-relic]');
     slotEls.forEach(el => {
       const rId = el.dataset.relic;
-      const rData = RELIC_DATA[rId];
-      el.addEventListener('mouseenter', () => this.showRelicTooltip(rData.name, rData.desc));
-      el.addEventListener('mouseleave', () => this.hideRelicTooltip());
+      const rData = relicsMap[rId];
+      if (rData) {
+        el.addEventListener('mouseenter', () => this.showRelicTooltip(rData.name, rData.desc));
+        el.addEventListener('mouseleave', () => this.hideRelicTooltip());
+      }
     });
   }
 
@@ -686,9 +772,14 @@ class GomiGame {
     this.hudLives.innerHTML = livesHtml;
 
     // フロア更新
-    const floor = this.floors[this.currentFloorIndex];
-    this.floorText.textContent = `FLOOR ${this.currentFloorIndex + 1} / 5`;
-    this.areaName.textContent = floor.name;
+    if (this.isTutorial) {
+      this.floorText.textContent = `TUTORIAL`;
+      this.areaName.textContent = '練習エリア（タイマー停止中）';
+    } else {
+      const floor = this.floors[this.currentFloorIndex];
+      this.floorText.textContent = `FLOOR ${this.currentFloorIndex + 1} / 5`;
+      this.areaName.textContent = floor.name;
+    }
 
     // フロアドット
     const dots = this.areaDots.querySelectorAll('.area-dot');
@@ -696,10 +787,14 @@ class GomiGame {
       dot.classList.toggle('active', idx <= this.currentFloorIndex);
     });
 
-    // NEXTキュー表示
+    // NEXTキュー表示（2_1: NEXT先読みで1個、2_4: NEXT先読みⅡで2個公開）
+    const revealCount = this.hasSkill('2_4') ? 2 : (this.hasSkill('2_1') ? 1 : 0);
     let queueHtml = '';
-    this.nextQueue.forEach(item => {
-      queueHtml += `<div class="next-box" title="${item.name}">${item.icon || '？'}</div>`;
+    this.nextQueue.forEach((item, idx) => {
+      const isRevealed = idx < revealCount;
+      const displayIcon = isRevealed ? (item.icon || item.emoji || '🗑️') : '？';
+      const displayTitle = isRevealed ? `${item.name} (先読み公開中)` : '？？？';
+      queueHtml += `<div class="next-box ${isRevealed ? 'revealed' : ''}" title="${displayTitle}">${displayIcon}</div>`;
     });
     this.nextQueueEl.innerHTML = queueHtml;
 
@@ -708,39 +803,66 @@ class GomiGame {
 
   getRandomItem() {
     const unlocked = this.getUnlockedTiers();
-    const pool = this.items.filter(item => unlocked.includes(item.tier));
+    let pool = this.items.filter(item => unlocked.includes(item.tier));
     if (pool.length === 0) return this.items[0];
+
+    // 3_5: 高得点ゴミ増加（Tier 3やbasePoints >= 180の出現ウェイトUP）
+    if (this.hasSkill('3_5')) {
+      const highPool = pool.filter(item => item.basePoints >= 180 || item.tier === 3);
+      if (highPool.length > 0 && Math.random() < 0.35) {
+        return highPool[Math.floor(Math.random() * highPool.length)];
+      }
+    }
+
     const idx = Math.floor(Math.random() * pool.length);
     return pool[idx];
   }
 
   popNextItem() {
+    if (this.isTutorial) return;
+
     this.currentItem = this.nextQueue.shift();
     this.nextQueue.push(this.getRandomItem());
 
-    // 図鑑遭遇カウント
+    // 図鑑遭遇カウント & 2_6: 分別辞典（初遭遇で+20 EPボーナス）
     const itemId = this.currentItem.id;
+    const isFirstEncounter = !this.saveData.zukan[itemId] || this.saveData.zukan[itemId].seen === 0;
     if (!this.saveData.zukan[itemId]) {
       this.saveData.zukan[itemId] = { seen: 0, correct: 0 };
     }
     this.saveData.zukan[itemId].seen += 1;
 
-    // ドット絵画像がある場合（ネガフィルムなど）はimgタグ表示、それ以外は絵文字
-    if (this.currentItem.name.includes('写真フィルム') || this.currentItem.name.includes('ネガ')) {
-      this.itemIcon.innerHTML = `<img src="assets/sprites/png/item_film_negative@4x.png" alt="${this.currentItem.name}" style="width:48px;height:48px;image-rendering:pixelated;">`;
-    } else {
-      this.itemIcon.textContent = this.currentItem.icon || '🗑️';
+    if (isFirstEncounter && this.hasSkill('2_6')) {
+      this.saveData.points += 20;
+      this.updateTitleScreenStats();
+      this.showRelicTooltip('📖 分別辞典ボーナス！', `${this.currentItem.name}を新発見！ +20 EP獲得！`);
+      setTimeout(() => this.hideRelicTooltip(), 2000);
     }
 
-    this.itemName.textContent = this.currentItem.name;
+    this.renderCurrentItem();
+  }
+
+  renderCurrentItem() {
+    if (!this.currentItem) return;
+
+    // ドット絵画像がある場合（ネガフィルムなど）はimgタグ表示、それ以外は絵文字
+    if (this.currentItem.name && (this.currentItem.name.includes('写真フィルム') || this.currentItem.name.includes('ネガ'))) {
+      this.itemIcon.innerHTML = `<img src="assets/sprites/png/item_film_negative@4x.png" alt="${this.currentItem.name}" style="width:48px;height:48px;image-rendering:pixelated;">`;
+    } else {
+      this.itemIcon.textContent = this.currentItem.emoji || this.currentItem.icon || '🗑️';
+    }
+
+    this.itemName.textContent = this.currentItem.name || 'ゴミ';
     this.itemCondition.textContent = this.currentItem.condition || this.getConditionHint(this.currentItem);
-    this.itemTierBadge.textContent = `TIER ${this.currentItem.tier} / ${this.currentItem.basePoints}PT`;
+    this.itemTierBadge.textContent = `TIER ${this.currentItem.tier || 1} / ${this.currentItem.basePoints || 100}PT`;
 
     // アニメーションリセット
     const box = document.getElementById('trash-item-box');
-    box.style.animation = 'none';
-    box.offsetHeight;
-    box.style.animation = 'item-float 1.2s steps(2) infinite';
+    if (box) {
+      box.style.animation = 'none';
+      box.offsetHeight;
+      box.style.animation = 'item-float 1.2s steps(2) infinite';
+    }
 
     this.updateHUD();
   }
@@ -755,6 +877,12 @@ class GomiGame {
 
   handleSort(selectedCategory) {
     if (this.isGameOver || this.isPausedForDraft || this.isPaused || !this.currentItem) return;
+
+    // チュートリアル中の入力ハンドリング
+    if (this.isTutorial) {
+      this.handleTutorialSort(selectedCategory);
+      return;
+    }
 
     const isCorrect = (selectedCategory === this.currentItem.category);
 
@@ -775,27 +903,74 @@ class GomiGame {
       const isFever = this.combo >= feverThreshold;
       const feverMultiplier = isFever ? (this.hasEquippedRelic('star') ? 2.0 : 1.5) : 1.0;
 
-      const comboMultiplier = 1 + Math.min(this.combo - 1, 20) * 0.1;
+      let comboMultiplier = 1 + Math.min(this.combo - 1, 20) * 0.1;
+      // 3_2: 回収ボーナス（コンボ加点倍率が 0.1 → 0.15 にUP）
+      if (this.hasSkill('3_2')) {
+        comboMultiplier = 1 + Math.min(this.combo - 1, 20) * 0.15;
+      }
+      // FLOOR 2 固有: センター街のスニーカー（10コンボ以上の獲得スコア+50%）
+      if (this.combo >= 10 && this.hasEquippedRelic('center_sneaker')) {
+        comboMultiplier *= 1.5;
+      }
+
       let basePoints = this.currentItem.basePoints;
+
+      // 4_1: 粗大ごみ処理（粗大ごみスコア+50%）
+      if (selectedCategory === 'oversized' && this.hasSkill('4_1')) {
+        basePoints *= 1.5;
+      }
 
       // レリック: どらごんの好物（どらごん正解時スコア2倍）
       if (selectedCategory === 'dragon' && (this.hasEquippedRelic('dragon_snack') || this.hasSkill('4_2'))) {
         basePoints *= 2;
       }
 
+      // レリック: 分別マグネット（資源ごみスコア+50%）
+      if (selectedCategory === 'resource' && this.hasEquippedRelic('magnet')) {
+        basePoints *= 1.5;
+      }
+
+      // レリック: 回収ボックス（不燃・粗大スコア+40%）
+      if ((selectedCategory === 'unburnable' || selectedCategory === 'oversized') && this.hasEquippedRelic('battery_box')) {
+        basePoints *= 1.4;
+      }
+
+      // FLOOR 4 固有: ミヤシタのスケボー（全スコア+30%）
+      if (this.hasEquippedRelic('miyashita_board')) {
+        basePoints *= 1.3;
+      }
+
+      // チュートリアル特典: 見習いバッジ（全スコア+15%）
+      if (this.hasEquippedRelic('trainee_badge')) {
+        basePoints *= 1.15;
+      }
+
       // レリック: コイン（スコア+10%）
       const coinBonusMultiplier = this.hasEquippedRelic('coin') ? 1.1 : 1.0;
 
-      const points = Math.round(basePoints * comboMultiplier * feverMultiplier * coinBonusMultiplier) + broomBonus;
+      // 0_4: 終電ダッシュ（残り10秒未満でスコア1.5倍）
+      const lastTrainMultiplier = (this.timeLeft < 10.0 && this.hasSkill('0_4')) ? 1.5 : 1.0;
+
+      const points = Math.round(basePoints * comboMultiplier * feverMultiplier * coinBonusMultiplier * lastTrainMultiplier) + broomBonus;
       this.currentScore += points;
 
       // 時間回復
       let timeRecovery = 1.2;
       if (this.hasEquippedRelic('clock')) timeRecovery += 0.5;
+      if (this.hasEquippedRelic('coffee')) timeRecovery += 0.6; // カフェ珈琲
       if (selectedCategory === 'dragon' && this.hasEquippedRelic('dragon_snack')) timeRecovery += 3.0;
       if (isFever && this.hasSkill('0_2')) timeRecovery += 2.0; // フィーバー強化
 
       this.timeLeft = Math.min(this.maxTime, this.timeLeft + timeRecovery);
+
+      // レリック: どらごんの呼子（どらごん正解でライフ1回復）
+      if (selectedCategory === 'dragon' && this.hasEquippedRelic('whistle')) {
+        const maxLives = this.hasSkill('0_5') ? 5 : (this.hasSkill('0_0') ? 4 : 3);
+        if (this.lives < maxLives) {
+          this.lives += 1;
+          this.updateHUD();
+        }
+      }
 
       // サウンド
       if (selectedCategory === 'dragon') {
@@ -808,23 +983,84 @@ class GomiGame {
       }
 
       // 図鑑正解カウント
-      this.saveData.zukan[this.currentItem.id].correct += 1;
+      if (this.saveData.zukan[this.currentItem.id]) {
+        this.saveData.zukan[this.currentItem.id].correct += 1;
+      }
 
       // ポップアップ表示
       this.showPopups(true, `+${points}`);
 
-      // フロア進行＆レリックドラフト判定
-      const currentFloorReq = this.floors[this.currentFloorIndex].count;
-      if (this.sortedInRun >= currentFloorReq && this.currentFloorIndex < this.floors.length - 1) {
-        this.currentFloorIndex += 1;
-        this.triggerRelicDraft();
+      // ① 15問正解ごとの通常レリックドラフト判定
+      this.correctCountSinceRelic += 1;
+      if (this.correctCountSinceRelic >= 15) {
+        this.correctCountSinceRelic = 0;
+        this.triggerRelicDraft('🎉 15問正解ボーナス！レリックを選択');
         return;
+      }
+
+      // ② フロア進行＆ステージクリア固有レリック判定
+      const currentFloorReq = this.floors[this.currentFloorIndex].count;
+      if (this.sortedInRun >= currentFloorReq) {
+        if (this.currentFloorIndex < this.floors.length - 1) {
+          const clearedFloorIdx = this.currentFloorIndex;
+          this.currentFloorIndex += 1;
+
+          // 0_3: ひと息（フロア開始時時間+3秒）
+          if (this.hasSkill('0_3')) {
+            this.timeLeft = Math.min(this.maxTime, this.timeLeft + 3.0);
+            this.showRelicTooltip('☕ ひと息ボーナス！', 'フロア突破！残り時間+3秒回復！');
+            setTimeout(() => this.hideRelicTooltip(), 2500);
+          }
+
+          this.triggerStageClearRelic(clearedFloorIdx);
+          return;
+        } else {
+          // 最終ステージ（FLOOR 5）突破！ALL CLEAR！
+          this.gameClear();
+          return;
+        }
       }
 
       this.popNextItem();
     } else {
       // 不正解（ミス）
       this.combo = 0;
+      this.recordMiss(this.currentItem, selectedCategory);
+
+      // レリック: 耐火グローブ（ミスを1回だけ無効化）
+      if (this.hasEquippedRelic('shield')) {
+        this.equippedRelics = this.equippedRelics.filter(id => id !== 'shield');
+        this.renderRelicSlots();
+        window.soundManager.playCorrect(1);
+        this.showPopups(false, '🛡️ 防護！');
+        this.showRelicTooltip('耐火グローブ発動！', '身代わりとなってダメージを防いだ！（消滅）');
+        setTimeout(() => this.hideRelicTooltip(), 2500);
+        this.popNextItem();
+        return;
+      }
+
+      // 4_4: 満腹ガード（フロア毎に1回、誤投入ミスを無効化）
+      if (this.hasSkill('4_4') && !this.hasUsedManpukuShield) {
+        this.hasUsedManpukuShield = true;
+        window.soundManager.playCorrect(1);
+        this.showPopups(false, '🛡️ 満腹ガード！');
+        this.showRelicTooltip('満腹ガード発動！', 'どらごんが満腹でミスを無効化してくれた！（1ラン1回）');
+        setTimeout(() => this.hideRelicTooltip(), 2500);
+        this.popNextItem();
+        return;
+      }
+
+      // 4_0: 餌やり（どらごん投入ミス時、時間ペナルティを軽減・無効化）
+      if (selectedCategory === 'dragon' && this.hasSkill('4_0')) {
+        // 通常のライフ減少をスキップして注意のみで済ませる
+        window.soundManager.playWrong();
+        this.showPopups(false, '🍗 餌やりセーフ！');
+        this.showRelicTooltip('餌やりスキル発動！', 'どらごんへの誤投入ペナルティが軽減された！');
+        setTimeout(() => this.hideRelicTooltip(), 2500);
+        this.popNextItem();
+        return;
+      }
+
       this.lives -= 1;
 
       // 爆発エフェクトを間違えたゴミ箱の上に発生
@@ -841,6 +1077,19 @@ class GomiGame {
       this.showPopups(false, 'MISS!');
 
       if (this.lives <= 0) {
+        // 0_7: 始発まで（ハート0時に1回だけ復活）
+        if (this.hasSkill('0_7') && !this.hasUsedRevive) {
+          this.hasUsedRevive = true;
+          this.lives = 1;
+          this.updateHUD();
+          window.soundManager.playFever();
+          this.showPopups(false, '🌅 始発で復活！');
+          this.showRelicTooltip('始発まで発動！', '始発が動き出し奇跡的に復活した！（残機+1）');
+          setTimeout(() => this.hideRelicTooltip(), 3000);
+          this.popNextItem();
+          return;
+        }
+
         const catNames = {
           burnable: '可燃ごみ',
           unburnable: '不燃ごみ',
@@ -856,37 +1105,55 @@ class GomiGame {
     }
   }
 
-  // フロアクリア時のレリック獲得ドラフト
-  triggerRelicDraft() {
+  // レリック獲得ドラフト（15問正解ごと、または通常ドラフト）
+  triggerRelicDraft(customTitle = '🎉 お宝レリックを選択') {
     this.isPausedForDraft = true;
     window.soundManager.playFever();
 
-    // 選択肢候補の作成（未装備のレリック）
-    const allRelicKeys = Object.keys(RELIC_DATA);
+    const titleEl = document.getElementById('relic-modal-title');
+    if (titleEl) titleEl.textContent = customTitle;
+    const subEl = document.getElementById('relic-modal-sub');
+    if (subEl) subEl.textContent = '渋谷の清掃活動で役立つ特殊パッシブアイテムを獲得できます（スロットに装備）';
+
+    const relicsMap = window.RELIC_DATA || {};
+    const allRelicKeys = Object.keys(relicsMap);
     let pool = allRelicKeys.filter(k => !this.equippedRelics.includes(k));
     
     // rare_relics未解放ならドラゴン好物は出にくい
-    if (!this.hasSkill('1_5')) { // レアレリック解放
+    if (!this.hasSkill('1_5')) {
       pool = pool.filter(k => k !== 'dragon_snack');
     }
     if (pool.length === 0) pool = allRelicKeys;
 
-    // シャッフル
-    pool = pool.sort(() => 0.5 - Math.random());
+    // 1_3: 目利き（強力レリックの優先抽選）
+    if (this.hasSkill('1_3')) {
+      const rareKeys = ['star', 'broom', 'coffee', 'magnet', 'whistle', 'dragon_snack'];
+      pool.sort((a, b) => {
+        const aRare = rareKeys.includes(a);
+        const bRare = rareKeys.includes(b);
+        if (aRare && !bRare) return Math.random() < 0.6 ? -1 : 1;
+        if (!aRare && bRare) return Math.random() < 0.6 ? 1 : -1;
+        return 0.5 - Math.random();
+      });
+    } else {
+      // シャッフル
+      pool = pool.sort(() => 0.5 - Math.random());
+    }
 
     // 選択肢数（スキルで3択、初期2択）
-    const choiceCount = this.hasSkill('1_1') ? 3 : 2; // ドラフト拡張
+    const choiceCount = this.hasSkill('1_1') ? 3 : 2;
     const candidates = pool.slice(0, choiceCount);
 
     const container = document.getElementById('relic-draft-cards');
     container.innerHTML = '';
 
     candidates.forEach(key => {
-      const relic = RELIC_DATA[key];
+      const relic = relicsMap[key];
       const card = document.createElement('div');
       card.className = 'draft-card';
+      const visualHtml = relic.icon ? `<img src="${relic.icon}" alt="${relic.name}" class="draft-card-img">` : `<div class="draft-card-emoji">${relic.emoji || '✨'}</div>`;
       card.innerHTML = `
-        <img src="${relic.icon}" alt="${relic.name}" class="draft-card-img">
+        ${visualHtml}
         <div class="draft-card-title">${relic.name}</div>
         <div class="draft-card-desc">${relic.desc}</div>
         <button class="draft-card-select-btn">装備する</button>
@@ -896,6 +1163,47 @@ class GomiGame {
       };
       container.appendChild(card);
     });
+
+    this.relicDraftModal.classList.remove('hidden');
+  }
+
+  // ステージクリア固有アイテムの確定獲得
+  triggerStageClearRelic(clearedFloorIdx) {
+    this.isPausedForDraft = true;
+    window.soundManager.playFever();
+
+    const stageRelics = window.STAGE_RELIC_DATA || {};
+    const stageRelic = stageRelics[clearedFloorIdx];
+
+    if (!stageRelic) {
+      // 固有レリックがなければ通常のドラフトへ
+      this.triggerRelicDraft(`🎉 FLOOR ${clearedFloorIdx + 1} CLEAR! レリックを選択`);
+      return;
+    }
+
+    const titleEl = document.getElementById('relic-modal-title');
+    if (titleEl) titleEl.textContent = `🎉 FLOOR ${clearedFloorIdx + 1} CLEAR! エリア秘宝を獲得！`;
+    const subEl = document.getElementById('relic-modal-sub');
+    if (subEl) subEl.textContent = `${this.floors[clearedFloorIdx].name} を見事に美化！次のフロアへ進む強力な固有アイテムを獲得！`;
+
+    const container = document.getElementById('relic-draft-cards');
+    container.innerHTML = '';
+
+    const card = document.createElement('div');
+    card.className = 'draft-card';
+    card.style.borderColor = '#facc15';
+    card.style.boxShadow = '0 0 15px rgba(250, 204, 21, 0.4)';
+    const visualHtml = stageRelic.icon ? `<img src="${stageRelic.icon}" alt="${stageRelic.name}" class="draft-card-img">` : `<div class="draft-card-emoji">${stageRelic.emoji || '✨'}</div>`;
+    card.innerHTML = `
+      ${visualHtml}
+      <div class="draft-card-title" style="color:#facc15;">${stageRelic.name}</div>
+      <div class="draft-card-desc">${stageRelic.desc}</div>
+      <button class="draft-card-select-btn" style="background:#f59e0b;">装備して次のフロアへ！</button>
+    `;
+    card.onclick = () => {
+      this.selectDraftRelic(stageRelic.id);
+    };
+    container.appendChild(card);
 
     this.relicDraftModal.classList.remove('hidden');
   }
@@ -914,12 +1222,441 @@ class GomiGame {
     }
 
     this.renderRelicSlots();
-    const relic = RELIC_DATA[relicId];
-    this.showRelicTooltip(`獲得: ${relic.name}`, relic.desc);
-    setTimeout(() => this.hideRelicTooltip(), 3000);
+    const relicsMap = window.ALL_RELICS_MAP || window.RELIC_DATA || {};
+    const relic = relicsMap[relicId];
+    if (relic) {
+      this.showRelicTooltip(`獲得: ${relic.name}`, relic.desc);
+      setTimeout(() => this.hideRelicTooltip(), 3000);
+    }
 
     this.isPausedForDraft = false;
+    this.updateHUD();
     this.popNextItem();
+  }
+
+  // 全5ステージ制覇（ALL CLEAR / ゲームクリア）
+  gameClear() {
+    this.isGameOver = true;
+    if (this.timerInterval) clearInterval(this.timerInterval);
+    window.soundManager.playFever();
+
+    // クリアボーナスEP（通常計算 + 500 EPボーナス）
+    let epRatio = 0.15;
+    if (this.hasSkill('3_0')) epRatio += 0.025;
+    if (this.hasSkill('3_3')) epRatio += 0.025;
+    if (this.hasEquippedRelic('coin')) epRatio += 0.03;
+    if (this.hasEquippedRelic('dogenzaka_lantern')) epRatio += 0.035;
+
+    const baseEarned = Math.floor(this.currentScore * epRatio);
+    const clearBonusEp = 500;
+    const earnedPoints = baseEarned + clearBonusEp;
+    this.saveData.points += earnedPoints;
+
+    // ハイスコア更新
+    let isNewHigh = false;
+    if (this.currentScore > this.saveData.highScore) {
+      this.saveData.highScore = this.currentScore;
+      isNewHigh = true;
+    }
+    this.saveGameData();
+
+    // リザルト画面をクリア仕様で表示
+    const titleEl = document.getElementById('result-title');
+    if (titleEl) {
+      titleEl.textContent = '🏆 ALL CLEAR! 渋谷防衛達成！';
+      titleEl.style.color = '#5eead4';
+    }
+    const causeEl = document.getElementById('death-cause');
+    if (causeEl) {
+      causeEl.innerHTML = `🎉 <strong>全5ステージのゴミ山を爆速完全分別！</strong><br>雑食どらごんもお腹いっぱいで大満足！渋谷の街に平和と美しさが戻った！（クリアボーナス: +${clearBonusEp} EP）`;
+      causeEl.style.borderColor = '#5eead4';
+      causeEl.style.color = '#f0fdf4';
+    }
+
+    document.getElementById('result-score').textContent = String(this.currentScore).padStart(6, '0');
+    document.getElementById('result-max-combo').textContent = String(this.maxCombo);
+    document.getElementById('result-earned-points').textContent = `+${earnedPoints} EP (ボーナス含)`;
+    this.renderResultLesson(true);
+
+    this.gameScreen.classList.add('hidden');
+    this.resultScreen.classList.remove('hidden');
+    this.updateTitleScreenStats();
+  }
+
+  // ================= チュートリアルモード =================
+  startTutorial() {
+    if (document.activeElement && document.activeElement.blur) {
+      document.activeElement.blur();
+    }
+    window.soundManager.playClick();
+    this.isTutorial = true;
+    this.tutorialStep = 1;
+    this.isGameOver = false;
+    this.isPausedForDraft = false;
+    this.isPaused = false;
+    this.currentScore = 0;
+    this.combo = 0;
+    this.maxCombo = 0;
+    this.lives = 3;
+    this.equippedRelics = [];
+    this.currentFloorIndex = 0;
+    this.sortedInRun = 0;
+
+    // チュートリアル用固定キュー
+    this.nextQueue = [
+      { name: 'ペットボトル', icon: '🍾' },
+      { name: '壊れた液晶テレビ', icon: '📺' },
+      { name: '見習い証', icon: '🔰' }
+    ];
+
+    // タイマー停止
+    if (this.timerInterval) clearInterval(this.timerInterval);
+
+    // 画面切り替え
+    this.titleScreen.classList.add('hidden');
+    this.resultScreen.classList.add('hidden');
+    this.gameScreen.classList.remove('hidden');
+    this.closeModals();
+
+    // チュートリアルバナー表示
+    if (this.tutorialBanner) this.tutorialBanner.classList.remove('hidden');
+
+    this.renderRelicSlots();
+    // まずイントロ解説モーダルを表示し、閉じてから STEP 1 へ進む
+    this.openTutorialIntroGuide();
+  }
+
+  // チュートリアル解説モーダル：画面0（ゲームの目的と時間制限）
+  openTutorialIntroGuide() {
+    // ページ1：ゲームの目的
+    this.isPausedForDraft = true;
+
+    if (!this.tutorialGuideModal) {
+      // モーダルが存在しない場合は直接 STEP 1 へ
+      this.isPausedForDraft = false;
+      this.setupTutorialStep();
+      return;
+    }
+
+    // バナーは一時的に隠してモーダルだけ表示
+    if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
+
+    this._showTutorialIntroPage1();
+    this.tutorialGuideModal.classList.remove('hidden');
+  }
+
+  _showTutorialIntroPage1() {
+    // ページ1 / 2：このゲームの目的
+    this.tutorialGuideHeading.textContent = '🌏 このゲームの目的　（1 / 2）';
+    this.tutorialGuideBody.innerHTML = `
+      <div class="tutorial-modal-section" style="background:rgba(250,204,21,0.08);padding:12px;border-radius:6px;border:1px solid rgba(250,204,21,0.3);">
+        <div class="tutorial-modal-title" style="color:#facc15;"><span>🗑️</span> 渋谷区のゴミ分別ルールを学ぼう！</div>
+        <div class="tutorial-modal-desc" style="color:#fef9c3;">
+          日本では自治体ごとにゴミ分別のルールが異なります。<br>
+          このゲームは<strong>渋谷区の実際の分別基準</strong>をもとに作られています。<br>
+          ゲームを楽しみながら、<strong>正しい分け方・捨て方</strong>を身につけよう！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>📖</span> ゴミ図鑑で復習できる！</div>
+        <div class="tutorial-modal-desc">
+          分別に成功・失敗したゴミはすべて<strong>「ゴミ図鑑」</strong>に記録されます。<br>
+          タイトル画面の<strong>【📖 ゴミ図鑑】</strong>で、各ゴミの正しい分け方・注意事項を<strong>渋谷区のルールに基づいて</strong>いつでも確認できます。<br>
+          <span style="color:#86efac;">ゲームで間違えたゴミを図鑑で復習して、現実でも正しく分別しよう！</span>
+        </div>
+      </div>
+
+      <div class="tutorial-modal-btn-row">
+        <button id="tutorial-intro-p1-btn" class="pixel-btn pixel-btn-green" style="padding:10px 20px;font-weight:bold;">
+          次へ：遊び方を見る ▶
+        </button>
+      </div>
+    `;
+
+    document.getElementById('tutorial-intro-p1-btn').onclick = () => {
+      window.soundManager.playClick();
+      this._showTutorialIntroPage2();
+    };
+  }
+
+  _showTutorialIntroPage2() {
+    // ページ2 / 2：操作方法・ゲームルール
+    this.tutorialGuideHeading.textContent = '🎮 遊び方　（2 / 2）';
+    this.tutorialGuideBody.innerHTML = `
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>👆</span> 基本操作</div>
+        <div class="tutorial-modal-desc">
+          画面中央にゴミが出てくるので、<strong>正しい分別ボタンを押して</strong>投げ込もう！<br><br>
+          <span style="font-size:1.2em;">🔥 可燃　♻️ 資源　🧊 不燃　🛢️ 粗大　🐉 どらごん</span>
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>⏱️</span> 時間制限</div>
+        <div class="tutorial-modal-desc">
+          画面上部の<strong>ブロックゲージ</strong>が残り時間です。ゼロになると<strong>ゲームオーバー！</strong><br>
+          ✅ 正解 → 時間が少し回復<br>
+          ❌ ミス → 残機（ライフ）が1減る<br>
+          <span style="color:#fb923c;font-weight:bold;">残機が0になってもゲームオーバー。</span>
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section" style="background:rgba(56,189,248,0.08);padding:10px;border-radius:6px;border:1px solid rgba(56,189,248,0.25);">
+        <div class="tutorial-modal-title" style="color:#facc15;"><span>🏆</span> 目標</div>
+        <div class="tutorial-modal-desc" style="color:#e0f2fe;">
+          全<strong>5ステージ</strong>を制覇して<strong>ALL CLEAR</strong>を目指そう！<br>
+          道中でゲットできる<strong>レリック（お宝アイテム）</strong>を使いこなせ！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-btn-row">
+        <button id="tutorial-intro-p2-btn" class="pixel-btn pixel-btn-green" style="padding:10px 20px;font-weight:bold;">
+          実際に分別してみよう！ ▶
+        </button>
+      </div>
+    `;
+
+    document.getElementById('tutorial-intro-p2-btn').onclick = () => {
+      window.soundManager.playClick();
+      this.tutorialGuideModal.classList.add('hidden');
+      this.isPausedForDraft = false;
+      if (this.tutorialBanner) this.tutorialBanner.classList.remove('hidden');
+      this.setupTutorialStep();
+    };
+  }
+
+  setupTutorialStep() {
+    // 全ボタンの点滅ハイライトを解除
+    document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
+
+    if (this.tutorialStep === 1) {
+      // STEP 1: 可燃ごみ
+      this.currentItem = {
+        id: 't_banana',
+        name: 'バナナの皮',
+        emoji: '🍌',
+        category: 'burnable',
+        basePoints: 100,
+        condition: '生ごみ',
+        tier: 1,
+        note: '水気をよく切って可燃ごみへ'
+      };
+      this.nextQueue = [
+        { name: 'ペットボトル', icon: '🍾' },
+        { name: '壊れた液晶テレビ', icon: '📺' }
+      ];
+      this.renderCurrentItem();
+      if (this.tutorialStepText) {
+        this.tutorialStepText.textContent = '① 生ごみや紙くずは「可燃ごみ」！ [Q] キーまたは赤いゴミ箱を押してみよう！';
+      }
+      const burnBtn = document.querySelector('[data-category="burnable"]');
+      if (burnBtn) burnBtn.classList.add('tutorial-highlight');
+    } else if (this.tutorialStep === 2) {
+      // STEP 2: 資源ごみ
+      this.currentItem = {
+        id: 't_pet',
+        name: 'ペットボトル',
+        emoji: '🍾',
+        category: 'resource',
+        basePoints: 100,
+        condition: '水洗い済み',
+        tier: 1,
+        note: 'キャップとラベルを外して資源ごみへ'
+      };
+      this.nextQueue = [
+        { name: '壊れた液晶テレビ', icon: '📺' },
+        { name: '見習い証', icon: '🔰' }
+      ];
+      this.renderCurrentItem();
+      if (this.tutorialStepText) {
+        this.tutorialStepText.textContent = '② 缶・ビン・ペットボトルは「資源ごみ」！ [E] キーまたは緑のゴミ箱を押そう！';
+      }
+      const resBtn = document.querySelector('[data-category="resource"]');
+      if (resBtn) resBtn.classList.add('tutorial-highlight');
+    } else if (this.tutorialStep === 3) {
+      // STEP 3: 雑食どらごん
+      this.currentItem = {
+        id: 't_tv',
+        name: '壊れた液晶テレビ',
+        emoji: '📺',
+        category: 'dragon',
+        basePoints: 300,
+        condition: '家電リサイクル対象',
+        tier: 3,
+        note: '区では収集できません。雑食どらごんに食べさせましょう！'
+      };
+      this.nextQueue = [
+        { name: '見習い証', icon: '🔰' },
+        { name: '修了ボーナス', icon: '🎁' }
+      ];
+      this.renderCurrentItem();
+      if (this.tutorialStepText) {
+        this.tutorialStepText.textContent = '③ 家電リサイクル品や危険物など「区で収集できないゴミ」は、雑食どらごん [Space] へ！';
+      }
+      const dragonBtn = document.querySelector('[data-category="dragon"]');
+      if (dragonBtn) dragonBtn.classList.add('tutorial-highlight');
+    } else if (this.tutorialStep === 4) {
+      // STEP 4: 特別レリック贈与
+      if (this.tutorialStepText) {
+        this.tutorialStepText.textContent = '④ 特別ボーナス！チュートリアル記念レリックを贈与します！';
+      }
+      this.giveTutorialRelic();
+    }
+  }
+
+  handleTutorialSort(selectedCategory) {
+    const isCorrect = (selectedCategory === this.currentItem.category);
+
+    if (isCorrect) {
+      if (selectedCategory === 'dragon') {
+        window.soundManager.playDragon();
+      } else {
+        window.soundManager.playCorrect(1);
+      }
+      this.showPopups(true, 'NICE!');
+
+      if (this.tutorialStep === 3) {
+        // STEP 3（どらごん）完了！→ ステージ＆アイテム解説モーダルを開く
+        setTimeout(() => {
+          this.openTutorialStageGuide();
+        }, 800);
+      } else {
+        this.tutorialStep += 1;
+        setTimeout(() => {
+          this.setupTutorialStep();
+        }, 700);
+      }
+    } else {
+      window.soundManager.playWrong();
+      this.showPopups(false, 'MISS!');
+      if (this.tutorialStepText) {
+        const correctNames = {
+          burnable: '「可燃ごみ」[Q]',
+          resource: '「資源ごみ」[E]',
+          dragon: '「雑食どらごん」[Space]'
+        };
+        this.tutorialStepText.textContent = `おしい！このゴミは ${correctNames[this.currentItem.category]} だよ！光っているボタンを押してみてね！`;
+      }
+    }
+  }
+
+  // チュートリアル詳細解説モーダル：画面1（ステージとお宝アイテム）
+  openTutorialStageGuide() {
+    this.isPausedForDraft = true;
+    window.soundManager.playFever();
+
+    if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
+    document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
+
+    if (!this.tutorialGuideModal) return;
+
+    this.tutorialGuideHeading.textContent = '🏆 全5ステージ制覇とお宝アイテム（レリック）';
+    this.tutorialGuideBody.innerHTML = `
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>🏙️</span> 全5ステージ構成</div>
+        <div class="tutorial-modal-desc">
+          本作は<strong>「スクランブル交差点」</strong>から始まり、<strong>「センター街」「道玄坂」「宮下パーク」</strong>を抜けて、最深部<strong>「雑食どらごんの巣」</strong>を目指す全5フロア！<br>
+          各ステージで一定個数のゴミを分別すると次のフロアへ進みます。
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>🎁</span> 15問正解ドラフト ＆ エリア固有の秘宝</div>
+        <div class="tutorial-modal-desc">
+          ・<strong>15問正解するごと</strong>に、3つのレリックから好きな1つを選んで装備！<br>
+          ・<strong>各ステージ突破時</strong>には、「忠犬の首輪」や「センター街のスニーカー」など<strong>エリア限定の固有アイテム</strong>を確定GET！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section" style="background: rgba(56, 189, 248, 0.1); padding: 10px; border-radius: 6px; border: 1px solid rgba(56, 189, 248, 0.3);">
+        <div class="tutorial-modal-title" style="color:#facc15;"><span>🔰</span> 記念品を特別プレゼント！</div>
+        <div class="tutorial-modal-desc" style="color:#e0f2fe;">
+          <strong>「見習い回収員の証」</strong>（全スコア+15% ＆ 初期時間+5秒）を特別に贈与します！左上のスロットに装備してみましょう！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-btn-row">
+        <button id="tutorial-step1-next-btn" class="pixel-btn pixel-btn-green" style="padding: 8px 16px;">特別アイテムを装備して次へ (EPとスキルツリー) ▶</button>
+      </div>
+    `;
+
+    document.getElementById('tutorial-step1-next-btn').onclick = () => {
+      window.soundManager.playClick();
+      // レリック装備
+      const relic = window.TUTORIAL_RELIC_DATA || { id: 'trainee_badge', name: '見習い回収員の証', emoji: '🔰', desc: '全スコア+15%＆初期持ち時間+5秒' };
+      if (!this.equippedRelics.includes(relic.id)) {
+        this.equippedRelics.push(relic.id);
+        this.renderRelicSlots();
+        this.showRelicTooltip(`獲得: ${relic.name}`, relic.desc);
+      }
+      this.openTutorialSkillGuide();
+    };
+
+    this.tutorialGuideModal.classList.remove('hidden');
+  }
+
+  // チュートリアル詳細解説モーダル：画面2（EPとスキルツリー）
+  openTutorialSkillGuide() {
+    window.soundManager.playClick();
+    if (!this.tutorialGuideModal) return;
+
+    this.tutorialGuideHeading.textContent = '🌳 EP（エコポイント）とスキルツリー';
+    this.tutorialGuideBody.innerHTML = `
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>🌱</span> 分別でEP（エコポイント）を獲得！</div>
+        <div class="tutorial-modal-desc">
+          ゴミを正しく分別するとスコアとともに<strong>「EP（エコポイント）」</strong>が貯まります。<br>
+          ゲームオーバーになっても、獲得したEPはすべて持ち帰ることができます！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>🗺️</span> 渋谷路線図で永続パワーアップ！</div>
+        <div class="tutorial-modal-desc">
+          タイトル画面の<strong>【🌳 スキルツリー】</strong>を開くと、渋谷の地下鉄のような路線図が広がっています。<br>
+          貯めたEPを使って駅を開通すると、<strong>「残機ライフ増加」「制限時間延長」「アイテムスロット拡張」「危険ゴミの解放」</strong>など、自分好みに永続強化できます！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-section">
+        <div class="tutorial-modal-title"><span>👑</span> 目指せ全5ステージ制覇（ALL CLEAR）！</div>
+        <div class="tutorial-modal-desc">
+          スキルツリーで能力を底上げし、道中で集めたお宝レリックを駆使して、渋谷の街をゴミの山から救い出しましょう！
+        </div>
+      </div>
+
+      <div class="tutorial-modal-btn-row">
+        <button id="tutorial-finish-btn" class="pixel-btn pixel-btn-yellow" style="padding: 10px 20px; font-weight:bold;">🎉 100 EP ボーナスを受け取って修了！</button>
+      </div>
+    `;
+
+    document.getElementById('tutorial-finish-btn').onclick = () => {
+      this.tutorialGuideModal.classList.add('hidden');
+      this.finishTutorial();
+    };
+  }
+
+  finishTutorial() {
+    this.saveData.tutorialCompleted = true;
+    this.saveData.points += 100;
+    this.saveGameData();
+
+    alert('🎉 チュートリアル修了！\n初回ボーナスとして 100 EP を獲得しました！\nタイトル画面の【🌳 スキルツリー】で強化して、全5ステージ制覇を目指しましょう！');
+
+    this.isTutorial = false;
+    if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
+    if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
+    document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
+    this.showTitleScreen();
+  }
+
+  skipTutorial() {
+    this.isTutorial = false;
+    if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
+    if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
+    document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
+    this.showTitleScreen();
   }
 
   showPopups(isCorrect, text) {
@@ -957,7 +1694,12 @@ class GomiGame {
     let epRatio = 0.1;
     if (this.hasSkill('3_0')) epRatio += 0.025; // エコ助成金 (+25%)
     if (this.hasSkill('3_3')) epRatio += 0.025; // エコ助成金Ⅱ (+25%)
+    // 3_6: 特別回収日（ランダムフロアまたは全フロアでEP倍率UP）
+    if (this.hasSkill('3_6')) epRatio += 0.05; // 特別回収日常時ボーナス
+    // 3_7: 一周ボーナス（ハイスコアに応じてEP倍率UP）
+    if (this.hasSkill('3_7')) epRatio += 0.05;
     if (this.hasEquippedRelic('coin')) epRatio += 0.03; // +30%
+    if (this.hasEquippedRelic('dogenzaka_lantern')) epRatio += 0.035; // 道玄坂の提灯 (+35%)
 
     const earnedPoints = Math.floor(this.currentScore * epRatio);
     this.saveData.points += earnedPoints;
@@ -969,12 +1711,20 @@ class GomiGame {
     }
     this.saveGameData();
 
-    // リザルトDOM
-    document.getElementById('result-title').textContent = isNewHigh ? '🏆 HIGH SCORE!!' : 'GAME OVER';
-    document.getElementById('death-cause').textContent = reason;
+    // リザルトDOM（ゲームオーバー用にリセット）
+    const titleEl = document.getElementById('result-title');
+    titleEl.textContent = isNewHigh ? '🏆 HIGH SCORE!!' : 'GAME OVER';
+    titleEl.style.color = isNewHigh ? '#ffd36b' : '#ef4444';
+
+    const causeEl = document.getElementById('death-cause');
+    causeEl.textContent = reason;
+    causeEl.style.borderColor = '#ef4444';
+    causeEl.style.color = '#fecaca';
+
     document.getElementById('result-score').textContent = String(this.currentScore).padStart(6, '0');
     document.getElementById('result-max-combo').textContent = `${this.maxCombo}`;
     document.getElementById('result-earned-points').textContent = `+${earnedPoints.toLocaleString()} EP`;
+    this.renderResultLesson(false);
 
     this.gameScreen.classList.add('hidden');
     this.resultScreen.classList.remove('hidden');
@@ -991,7 +1741,112 @@ class GomiGame {
     this.updateTitleScreenStats();
   }
 
+    // ミスの記録（図鑑の「苦手」とゲームオーバーの答え合わせに使う）
+  recordMiss(item, wrongBin) {
+    if (!item || !item.id) return;
+    const z = this.saveData.zukan[item.id] || (this.saveData.zukan[item.id] = { seen: 1, correct: 0 });
+    z.miss = (z.miss || 0) + 1;
+    z.missBy = z.missBy || {};
+    z.missBy[wrongBin] = (z.missBy[wrongBin] || 0) + 1;
+    this.runMisses.push({ item, wrong: wrongBin });
+    this.saveGameData();
+  }
+
+  // ゲームオーバー／クリア画面の「答え合わせ」パネル（スライド式）
+  renderResultLesson(isClear) {
+    const box = document.getElementById('death-lesson');
+    if (!box) return;
+    const L = window.GomiLesson;
+    const rawMisses = this.runMisses || [];
+    if (!L || rawMisses.length === 0) {
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+
+    // 重複を除いたミスリストを作成（最新順）
+    // 最後に間違えたゴミがインデックス0に来るようにする
+    const uniqueMisses = [];
+    const seen = new Set();
+    for (let i = rawMisses.length - 1; i >= 0; i--) {
+      const m = rawMisses[i];
+      if (!seen.has(m.item.id)) {
+        seen.add(m.item.id);
+        uniqueMisses.push(m);
+      }
+    }
+
+    this.currentLessonIndex = 0;
+    this.lessonMissesList = uniqueMisses;
+
+    const renderSlide = (index) => {
+      this.currentLessonIndex = Math.max(0, Math.min(index, uniqueMisses.length - 1));
+      const cur = uniqueMisses[this.currentLessonIndex];
+      const icon = (cur.item.icon || cur.item.emoji || '🗑️');
+      const total = uniqueMisses.length;
+
+      let html = `
+        <div class="lesson-box-header">
+          <div class="lesson-box-title">
+            ${isClear ? '▶ ミスしたゴミをおさらい' : '▶ ミスしたゴミの答え合わせ'}
+          </div>
+          <div class="lesson-page-indicator">
+            ${this.currentLessonIndex + 1} / ${total}
+          </div>
+        </div>
+        <div class="lesson-card-content">
+          <div class="lesson-main-item">
+            <span>${L.esc(icon)}</span>
+            <span>${L.esc(cur.item.name)}</span>
+            ${cur.item.condition ? `<small>${L.esc(cur.item.condition)}</small>` : ''}
+          </div>
+          ${L.lessonBlockHtml(cur.item, cur.wrong)}
+        </div>
+      `;
+
+      if (total > 1) {
+        html += `
+          <div class="lesson-nav-bar">
+            <button id="lesson-prev-btn" class="lesson-nav-btn" ${this.currentLessonIndex === 0 ? 'disabled' : ''}>
+              ◀ 前のミス
+            </button>
+            <div class="lesson-nav-dots">
+              ${uniqueMisses.map((_, i) => `<span class="lesson-dot ${i === this.currentLessonIndex ? 'active' : ''}"></span>`).join('')}
+            </div>
+            <button id="lesson-next-btn" class="lesson-nav-btn" ${this.currentLessonIndex === total - 1 ? 'disabled' : ''}>
+              次のミス ▶
+            </button>
+          </div>
+        `;
+      }
+
+      box.innerHTML = html;
+
+      // ボタンのイベント紐付け
+      const prevBtn = document.getElementById('lesson-prev-btn');
+      const nextBtn = document.getElementById('lesson-next-btn');
+      if (prevBtn) {
+        prevBtn.onclick = (e) => {
+          e.stopPropagation();
+          window.soundManager.playClick();
+          renderSlide(this.currentLessonIndex - 1);
+        };
+      }
+      if (nextBtn) {
+        nextBtn.onclick = (e) => {
+          e.stopPropagation();
+          window.soundManager.playClick();
+          renderSlide(this.currentLessonIndex + 1);
+        };
+      }
+    };
+
+    renderSlide(0);
+    box.classList.remove('hidden');
+  }
+
   // 図鑑モーダル
+  // filterCat: all / burnable / unburnable / resource / oversized / dragon / weak(苦手) / unseen(未遭遇) / run(今回のミス)
   openZukan(filterCat = 'all', searchQuery = '') {
     window.soundManager.playClick();
     this.currentZukanCat = filterCat;
@@ -1016,6 +1871,7 @@ class GomiGame {
         this.renderZukanList(this.currentZukanCat || 'all', e.target.value.trim());
       });
     }
+    if (searchInput) searchInput.value = searchQuery;
 
     const filterChips = document.querySelectorAll('.filter-chip');
     filterChips.forEach(chip => {
@@ -1033,36 +1889,61 @@ class GomiGame {
     const container = document.getElementById('zukan-list');
     if (!container) return;
     container.innerHTML = '';
+    const L = window.GomiLesson;
+    const esc = L ? L.esc : (s => String(s));
 
-    // 新ドット絵アセットの参照
-    const binImages = {
-      burnable: 'assets/sprites/png/bin_kanen_red@4x.png',
-      unburnable: 'assets/sprites/png/bin_funen_blue@4x.png',
-      resource: 'assets/sprites/png/bin_shigen_green@4x.png',
-      oversized: 'assets/sprites/png/bin_sodai_crate@4x.png',
-      dragon: 'assets/sprites/png/dragon_zasshoku@4x.png'
-    };
+    const binImages = L ? L.BIN_IMG : {};
+    const zstat = (item) => this.saveData.zukan[item.id] || { seen: 0, correct: 0 };
 
     let filtered = this.items;
-    if (filterCat !== 'all') {
+    const isRun = filterCat === 'run';
+    if (isRun) {
+      const ids = new Set((this.runMisses || []).map(m => m.item.id));
+      filtered = filtered.filter(i => ids.has(i.id));
+    } else if (filterCat === 'weak') {
+      filtered = filtered.filter(i => (zstat(i).miss || 0) > 0)
+        .sort((a, b) => (zstat(b).miss || 0) - (zstat(a).miss || 0));
+    } else if (filterCat === 'unseen') {
+      filtered = filtered.filter(i => !(zstat(i).seen > 0));
+    } else if (filterCat !== 'all') {
       filtered = filtered.filter(i => i.category === filterCat);
     }
     if (searchQuery) {
       const q = searchQuery.toLowerCase();
-      filtered = filtered.filter(i => i.name.toLowerCase().includes(q) || (i.notes && i.notes.toLowerCase().includes(q)));
+      filtered = filtered.filter(i =>
+        i.name.toLowerCase().includes(q) ||
+        ((L ? L.getNote(i) : (i.notes || '')).toLowerCase().includes(q)));
+    }
+
+    // 今回のミスだけを見ているときの帯
+    if (isRun) {
+      const banner = document.createElement('div');
+      banner.className = 'zukan-run-banner';
+      banner.innerHTML = `<span>今回ミスしたゴミ ${filtered.length}件を表示中</span><button type="button">全部見る</button>`;
+      banner.querySelector('button').onclick = () => this.openZukan('all', '');
+      container.appendChild(banner);
     }
 
     if (filtered.length === 0) {
-      container.innerHTML = '<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">該当するゴミが見つかりませんでした</div>';
+      const msg = filterCat === 'weak' ? 'まだミスしたゴミはありません。えらい！'
+        : filterCat === 'unseen' ? '全部のゴミに出会えています！'
+        : '該当するゴミが見つかりませんでした';
+      container.insertAdjacentHTML('beforeend', `<div style="text-align:center;padding:24px;color:#94a3b8;font-size:13px;">${msg}</div>`);
       return;
     }
 
-    filtered.forEach(item => {
-      const stat = this.saveData.zukan[item.id] || { seen: 0, correct: 0 };
-      const isUnlocked = stat.seen > 0;
+    const catBadges = {
+      burnable: { label: '可燃', bg: '#dc2626' },
+      unburnable: { label: '不燃', bg: '#2563eb' },
+      resource: { label: '資源', bg: '#059669' },
+      oversized: { label: '粗大', bg: '#d97706' },
+      dragon: { label: 'どらごん', bg: '#9333ea' }
+    };
 
-      const card = document.createElement('div');
-      card.className = `zukan-card-row ${isUnlocked ? '' : 'locked'}`;
+    filtered.forEach(item => {
+      const stat = zstat(item);
+      const isUnlocked = stat.seen > 0;
+      const miss = stat.miss || 0;
 
       let rankBadge = '未遭遇';
       let rankColor = '#64748b';
@@ -1075,15 +1956,11 @@ class GomiGame {
       } else if (stat.correct >= 1) {
         rankBadge = '🌱 習得済';
         rankColor = '#10b981';
+      } else if (isUnlocked) {
+        rankBadge = '👀 遭遇済';
+        rankColor = '#a78bfa';
       }
 
-      const catBadges = {
-        burnable: { label: '可燃', bg: '#dc2626' },
-        unburnable: { label: '不燃', bg: '#2563eb' },
-        resource: { label: '資源', bg: '#059669' },
-        oversized: { label: '粗大', bg: '#d97706' },
-        dragon: { label: 'どらごん', bg: '#9333ea' }
-      };
       const catInfo = catBadges[item.category] || { label: '？', bg: '#475569' };
       const binImgSrc = binImages[item.category];
 
@@ -1096,20 +1973,54 @@ class GomiGame {
         }
       }
 
+      const note = L ? L.getNote(item) : (item.notes || '');
+      const subText = isUnlocked
+        ? (note || '渋谷区のルールに従って分別しましょう。')
+        : 'ゲームで分別に遭遇すると解放されます';
+
+      const card = document.createElement('div');
+      card.className = `zukan-card-row zukan-card-v2 ${isUnlocked ? '' : 'locked'}`;
+
+      let detailHtml = '';
+      if (isUnlocked && L) {
+        detailHtml = L.lessonBlockHtml(item, null);
+
+        // あなたがミスした先ごとの一言
+        const missBy = stat.missBy || {};
+        const entries = Object.entries(missBy).sort((a, b) => b[1] - a[1]);
+        if (entries.length) {
+          detailHtml += '<div class="zukan-miss-block"><div class="zukan-miss-title">あなたのミス</div>' +
+            entries.map(([bin, n]) => {
+              const tip = L.getMissTip(item, bin);
+              return `<div class="lesson-answer-row"><span class="lesson-pill lesson-pill-wrong" style="border-color:${L.BIN_COLOR[bin] || '#475569'};">✕ ${esc(L.BIN_NAMES[bin] || '?')}</span><span class="lesson-arrow">×${n}回</span></div>` +
+                (tip ? `<div class="lesson-tip">💡 ${esc(tip)}</div>` : '');
+            }).join('') + '</div>';
+        }
+        detailHtml += `<div class="zukan-stat-line">遭遇 ${stat.seen}回 ／ 正解 ${stat.correct}回 ／ ミス ${miss}回</div>`;
+      }
+
       card.innerHTML = `
-        <div class="zukan-item-icon">${iconHtml}</div>
-        ${isUnlocked && binImgSrc ? `<img src="${binImgSrc}" alt="${catInfo.label}" class="zukan-bin-tag-img">` : ''}
-        <div style="flex:1;">
-          <div style="font-size:14px;font-weight:bold;display:flex;align-items:center;gap:6px;">
-            ${isUnlocked ? item.name : '？？？？'}
-            <span style="background:${catInfo.bg};font-size:10px;padding:2px 6px;border-radius:4px;">${catInfo.label}</span>
-            <span style="background:${rankColor};color:#000;font-size:10px;padding:2px 6px;border-radius:4px;">${rankBadge}</span>
+        <div class="zukan-card-head">
+          <div class="zukan-item-icon">${iconHtml}</div>
+          ${isUnlocked && binImgSrc ? `<img src="${binImgSrc}" alt="${esc(catInfo.label)}" class="zukan-bin-tag-img">` : ''}
+          <div class="zukan-card-title">
+            <div class="zukan-card-name">
+              ${isUnlocked ? esc(item.name) : '？？？？'}
+              <span class="zukan-badge" style="background:${catInfo.bg};">${catInfo.label}</span>
+              <span class="zukan-badge zukan-badge-rank" style="background:${rankColor};">${rankBadge}</span>
+              ${miss >= 2 ? '<span class="zukan-badge zukan-badge-weak">⚠️ 苦手</span>' : ''}
+            </div>
+            <div class="zukan-card-sub">${esc(subText)}</div>
           </div>
-          <div style="font-size:11px;color:#c9bff0;margin-top:2px;">
-            ${isUnlocked ? (item.notes || '渋谷区のルールに従って分別しましょう。') : 'ゲームで分別に遭遇すると解放されます'}
-          </div>
+          ${isUnlocked ? '<span class="zukan-card-chevron">▶</span>' : ''}
         </div>
+        ${isUnlocked ? `<div class="zukan-card-detail">${detailHtml}</div>` : ''}
       `;
+
+      if (isUnlocked) {
+        card.addEventListener('click', () => card.classList.toggle('open'));
+        if (isRun) card.classList.add('open'); // 今回のミスは最初から開いておく
+      }
       container.appendChild(card);
     });
   }
@@ -1407,9 +2318,79 @@ class GomiGame {
     this.relicDraftModal.classList.add('hidden');
     this.pauseModal.classList.add('hidden');
     this.helpModal.classList.add('hidden');
+    if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
+    if (this.equipModal) this.equipModal.classList.add('hidden');
     const resetModal = document.getElementById('tree-reset-modal');
     if (resetModal) resetModal.classList.add('hidden');
     this.isPaused = false;
+  }
+
+  // ===== 装備編集モーダルを開く =====
+  openEquipModal() {
+    if (!this.equipModal || !this.equipModalBody) return;
+    window.soundManager.playClick();
+
+    const relicsMap = window.ALL_RELICS_MAP || window.RELIC_DATA || {};
+    const maxSlots = this.getMaxRelicSlots();
+    const totalDisplay = 5;
+    let html = '';
+
+    for (let i = 0; i < totalDisplay; i++) {
+      const isUnlocked = i < maxSlots;
+      const relicId = this.equippedRelics[i];
+      const relic = relicId ? relicsMap[relicId] : null;
+
+      if (!isUnlocked) {
+        // ロック済みスロット
+        html += `
+          <div class="equip-locked-slot">
+            <span style="font-size:20px;">🔒</span>
+            <span class="equip-slot-desc">スロット${i + 1}：スキルツリー「スロット拡張」で解放</span>
+          </div>
+        `;
+      } else if (relic) {
+        // 装備中スロット
+        const visual = window.renderRelicVisual ? window.renderRelicVisual(relic) : `<span style="font-size:24px;">${relic.emoji || '✨'}</span>`;
+        html += `
+          <div class="equip-slot-row">
+            <span class="equip-slot-index">${i + 1}</span>
+            <div class="equip-slot-visual">${visual}</div>
+            <div class="equip-slot-info">
+              <div class="equip-slot-name">${relic.name}</div>
+              <div class="equip-slot-desc">${relic.desc || ''}</div>
+            </div>
+            <button class="equip-remove-btn" data-remove-relic="${relic.id}">外す</button>
+          </div>
+        `;
+      } else {
+        // 空きスロット
+        html += `
+          <div class="equip-slot-row" style="opacity:0.5;">
+            <span class="equip-slot-index">${i + 1}</span>
+            <div class="equip-slot-visual" style="font-size:20px;color:#4a4272;">○</div>
+            <div class="equip-slot-info">
+              <div class="equip-slot-empty">空きスロット（ゲーム中のドラフトで装備できます）</div>
+            </div>
+          </div>
+        `;
+      }
+    }
+
+    html += `<p class="equip-modal-hint">💡 装備を外すとスロットが空き、次のドラフトで新たに装備できます。<br>外した装備は消滅します。</p>`;
+    this.equipModalBody.innerHTML = html;
+
+    // 「外す」ボタンのイベント
+    this.equipModalBody.querySelectorAll('.equip-remove-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const rid = btn.dataset.removeRelic;
+        this.equippedRelics = this.equippedRelics.filter(id => id !== rid);
+        this.renderRelicSlots();
+        window.soundManager.playClick();
+        this.openEquipModal(); // リフレッシュ
+      });
+    });
+
+    this.equipModal.classList.remove('hidden');
   }
 
   shareToX() {
