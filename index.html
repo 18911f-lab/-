@@ -372,7 +372,6 @@
           <div id="death-cause" class="result-cause-box">
             テレビを可燃ごみに突っ込んで渋谷が焦土と化した！
           </div>
-          <div id="death-lesson" class="lesson-box hidden"></div>
           <div class="result-metrics-grid">
             <div class="metric-card">
               <div class="metric-label">FINAL SCORE</div>
@@ -388,10 +387,29 @@
             </div>
           </div>
           <div class="result-actions">
-            <button id="retry-btn" class="pixel-btn pixel-btn-green">もう一度あそぶ</button>
-            <button id="share-btn" class="pixel-btn pixel-btn-blue">𝕏 結果をポスト</button>
-            <button id="result-zukan-btn" class="pixel-btn pixel-btn-purple">📖 図鑑で復習</button>
-            <button id="title-btn" class="pixel-btn pixel-btn-yellow">タイトルへ</button>
+            <button id="result-lesson-btn" class="pixel-btn pixel-btn-orange hidden">📝 ミスの答え合わせ</button>
+            <div class="result-sub-actions">
+              <button id="retry-btn" class="pixel-btn pixel-btn-green">もう一度あそぶ</button>
+              <button id="share-btn" class="pixel-btn pixel-btn-blue">𝕏 結果をポスト</button>
+              <button id="result-zukan-btn" class="pixel-btn pixel-btn-purple">📖 図鑑で復習</button>
+              <button id="title-btn" class="pixel-btn pixel-btn-yellow">タイトルへ</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ================= モーダル: ミス答え合わせ ================= -->
+      <div id="lesson-modal" class="pixel-modal hidden">
+        <div class="pixel-modal-frame" style="max-width:540px;">
+          <div class="modal-top-bar">
+            <span class="modal-heading" style="color:#ffd36b;">📝 ミスしたゴミの答え合わせ</span>
+            <button class="pixel-close-btn modal-close">✕</button>
+          </div>
+          <div id="lesson-modal-body" class="lesson-modal-body" style="padding: 16px;">
+            <div id="death-lesson" class="lesson-box" style="margin: 0;"></div>
+            <div style="margin-top: 12px; text-align: center;">
+              <button class="pixel-btn pixel-btn-yellow modal-close" style="min-width: 140px;">閉じる</button>
+            </div>
           </div>
         </div>
       </div>

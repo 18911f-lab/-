@@ -311,6 +311,8 @@ class GomiGame {
     this.relicDraftModal = document.getElementById('relic-draft-modal');
     this.pauseModal = document.getElementById('pause-modal');
     this.helpModal = document.getElementById('help-modal');
+    this.lessonModal = document.getElementById('lesson-modal');
+    this.resultLessonBtn = document.getElementById('result-lesson-btn');
 
     // HUD
     this.hudScore = document.getElementById('hud-score');
@@ -406,6 +408,9 @@ class GomiGame {
     });
 
     // リザルトボタン
+    if (this.resultLessonBtn) {
+      this.resultLessonBtn.addEventListener('click', () => this.openLessonModal());
+    }
     document.getElementById('retry-btn').addEventListener('click', () => this.startGame());
     document.getElementById('share-btn').addEventListener('click', () => this.shareToX());
     document.getElementById('result-zukan-btn').addEventListener('click', () => this.openZukan(this.runMisses && this.runMisses.length ? 'run' : 'all'));
@@ -1774,6 +1779,7 @@ class GomiGame {
 
   showTitleScreen() {
     window.soundManager.playClick();
+    this.closeModals();
     this.hideRelicTooltip();
     if (this.timerInterval) clearInterval(this.timerInterval);
     if (this.countdownTimeout) clearTimeout(this.countdownTimeout);
@@ -1796,13 +1802,14 @@ class GomiGame {
     this.saveGameData();
   }
 
-  // ゲームオーバー／クリア画面の「答え合わせ」パネル（スライド式）
+  // ゲームオーバー／クリア画面の「答え合わせ」パネル（モーダル内スライド式）
   renderResultLesson(isClear) {
     const box = document.getElementById('death-lesson');
     if (!box) return;
     const L = window.GomiLesson;
     const rawMisses = this.runMisses || [];
     if (!L || rawMisses.length === 0) {
+      if (this.resultLessonBtn) this.resultLessonBtn.classList.add('hidden');
       box.classList.add('hidden');
       box.innerHTML = '';
       return;
@@ -1818,6 +1825,19 @@ class GomiGame {
         seen.add(m.item.id);
         uniqueMisses.push(m);
       }
+    }
+
+    if (uniqueMisses.length === 0) {
+      if (this.resultLessonBtn) this.resultLessonBtn.classList.add('hidden');
+      box.classList.add('hidden');
+      box.innerHTML = '';
+      return;
+    }
+
+    // ミスがある場合はリザルト画面のボタンを表示
+    if (this.resultLessonBtn) {
+      this.resultLessonBtn.textContent = isClear ? `📝 ミスのおさらい (${uniqueMisses.length}件)` : `📝 ミスの答え合わせ (${uniqueMisses.length}件)`;
+      this.resultLessonBtn.classList.remove('hidden');
     }
 
     this.currentLessonIndex = 0;
@@ -2356,6 +2376,13 @@ class GomiGame {
     this.helpModal.classList.remove('hidden');
   }
 
+  openLessonModal() {
+    window.soundManager.playClick();
+    if (this.lessonModal) {
+      this.lessonModal.classList.remove('hidden');
+    }
+  }
+
   closeModals() {
     this.hideRelicTooltip();
     this.zukanModal.classList.add('hidden');
@@ -2363,6 +2390,7 @@ class GomiGame {
     this.relicDraftModal.classList.add('hidden');
     this.pauseModal.classList.add('hidden');
     this.helpModal.classList.add('hidden');
+    if (this.lessonModal) this.lessonModal.classList.add('hidden');
     if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
     if (this.equipModal) this.equipModal.classList.add('hidden');
     const resetModal = document.getElementById('tree-reset-modal');

@@ -225,6 +225,7 @@ body {
 .pixel-btn-cyan { background: #06b6d4; color: #fff; box-shadow: 0 -3px 0 0 #0891b2, 0 3px 0 0 #0891b2, -3px 0 0 0 #0891b2, 3px 0 0 0 #0891b2; }
 .pixel-btn-blue { background: #3b82f6; color: #fff; box-shadow: 0 -3px 0 0 #1d4ed8, 0 3px 0 0 #1d4ed8, -3px 0 0 0 #1d4ed8, 3px 0 0 0 #1d4ed8; }
 .pixel-btn-yellow { background: #f59e0b; color: #fff; box-shadow: 0 -3px 0 0 #b45309, 0 3px 0 0 #b45309, -3px 0 0 0 #b45309, 3px 0 0 0 #b45309; }
+.pixel-btn-orange { background: #f97316; color: #fff; box-shadow: 0 -3px 0 0 #c2410c, 0 3px 0 0 #c2410c, -3px 0 0 0 #c2410c, 3px 0 0 0 #c2410c; }
 .pixel-btn-purple { background: #a855f7; color: #fff; box-shadow: 0 -3px 0 0 #7e22ce, 0 3px 0 0 #7e22ce, -3px 0 0 0 #7e22ce, 3px 0 0 0 #7e22ce; }
 
 .title-stats-footer {
@@ -1050,7 +1051,42 @@ body {
 
 .result-actions {
   display: flex;
+  flex-direction: column;
+  align-items: center;
   gap: 10px;
+  width: 100%;
+}
+
+#result-lesson-btn {
+  width: 100%;
+  max-width: 440px;
+  font-size: 14px;
+  padding: 10px 16px;
+  animation: pulse-lesson-btn 2s infinite ease-in-out;
+}
+
+@keyframes pulse-lesson-btn {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.02); }
+}
+
+.result-sub-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  width: 100%;
+}
+
+.result-sub-actions .pixel-btn {
+  padding: 8px 12px;
+  font-size: 12px;
+}
+
+.lesson-modal-body {
+  box-sizing: border-box;
+  max-height: 440px;
+  overflow-y: auto;
 }
 
 /* ================= モーダル群（図鑑・ショップ・ヘルプ） ================= */
