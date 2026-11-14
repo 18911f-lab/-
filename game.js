@@ -585,10 +585,56 @@ class GomiGame {
 
     this.renderRelicSlots();
     this.updateHUD();
-    this.popNextItem();
 
-    // タイマー（100ms周期）
-    this.startTimer();
+    // カウントダウン演出（3→2→1→START!）を実行後にゴミ出現＆タイマー開始
+    this.startCountdown(() => {
+      this.popNextItem();
+      this.startTimer();
+    });
+  }
+
+  // ステージ開始時の特大カウントダウン演出
+  startCountdown(onComplete) {
+    if (this.countdownTimeout) clearTimeout(this.countdownTimeout);
+
+    if (!this.countdownOverlay) {
+      if (onComplete) onComplete();
+      return;
+    }
+
+    this.isPausedForDraft = true; // カウントダウン中の入力ガード
+    const currentFloor = this.floors[this.currentFloorIndex] || { name: 'スクランブル交差点' };
+    if (this.countdownStageBanner) {
+      this.countdownStageBanner.textContent = `STAGE ${this.currentFloorIndex + 1}: ${currentFloor.name}`;
+    }
+
+    this.countdownOverlay.classList.remove('hidden');
+
+    let count = 3;
+    const tick = () => {
+      if (!this.countdownMainNum) return;
+      this.countdownMainNum.classList.remove('start', 'anim-pop');
+      void this.countdownMainNum.offsetWidth; // リフロー強制でアニメーション再発火
+
+      if (count > 0) {
+        this.countdownMainNum.textContent = count;
+        this.countdownMainNum.classList.add('anim-pop');
+        window.soundManager.playSelect();
+        count--;
+        this.countdownTimeout = setTimeout(tick, 750);
+      } else {
+        this.countdownMainNum.textContent = 'START!';
+        this.countdownMainNum.classList.add('start', 'anim-pop');
+        window.soundManager.playFever();
+        this.countdownTimeout = setTimeout(() => {
+          this.countdownOverlay.classList.add('hidden');
+          this.isPausedForDraft = false;
+          if (onComplete) onComplete();
+        }, 650);
+      }
+    };
+
+    tick();
   }
 
   togglePause(forceState = null) {
@@ -1615,15 +1661,26 @@ class GomiGame {
 
   showPopups(isCorrect, text) {
     if (isCorrect) {
-      // 正解：左横にスコア、右横にコンボ
+      // 正解：左横にスコア（斜め右肩上がり）、右横にコンボ
       this.feedbackPopup.textContent = text;
       this.feedbackPopup.classList.remove('hidden');
-      setTimeout(() => this.feedbackPopup.classList.add('hidden'), 500);
+
+      // アニメーションを強制的に再トリガー（連続分別時でも毎回確実に跳ねる）
+      this.feedbackPopup.style.animation = 'none';
+      void this.feedbackPopup.offsetWidth; // 強制リフロー
+      this.feedbackPopup.style.animation = '';
+
+      if (this.feedbackTimer) clearTimeout(this.feedbackTimer);
+      this.feedbackTimer = setTimeout(() => this.feedbackPopup.classList.add('hidden'), 550);
 
       if (this.combo >= 2) {
         this.comboPopup.textContent = `${this.combo} COMBO!`;
         this.comboPopup.classList.remove('hidden');
-        setTimeout(() => this.comboPopup.classList.add('hidden'), 700);
+        this.comboPopup.style.animation = 'none';
+        void this.comboPopup.offsetWidth;
+        this.comboPopup.style.animation = '';
+        if (this.comboTimer) clearTimeout(this.comboTimer);
+        this.comboTimer = setTimeout(() => this.comboPopup.classList.add('hidden'), 700);
       }
       if (this.missPopup) this.missPopup.classList.add('hidden');
     } else {
@@ -1634,7 +1691,11 @@ class GomiGame {
       if (this.missPopup) {
         this.missPopup.textContent = text || 'MISS!';
         this.missPopup.classList.remove('hidden');
-        setTimeout(() => this.missPopup.classList.add('hidden'), 600);
+        this.missPopup.style.animation = 'none';
+        void this.missPopup.offsetWidth;
+        this.missPopup.style.animation = '';
+        if (this.missTimer) clearTimeout(this.missTimer);
+        this.missTimer = setTimeout(() => this.missPopup.classList.add('hidden'), 600);
       }
     }
   }
@@ -1689,6 +1750,9 @@ class GomiGame {
   showTitleScreen() {
     window.soundManager.playClick();
     if (this.timerInterval) clearInterval(this.timerInterval);
+    if (this.countdownTimeout) clearTimeout(this.countdownTimeout);
+    if (this.countdownOverlay) this.countdownOverlay.classList.add('hidden');
+    this.isPausedForDraft = false;
     this.gameScreen.classList.add('hidden');
     this.resultScreen.classList.add('hidden');
     this.titleScreen.classList.remove('hidden');

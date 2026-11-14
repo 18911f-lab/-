@@ -7,8 +7,8 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css?v=20261114_fix2">
-  <link rel="stylesheet" href="zukan_extra.css?v=20261114_fix2">
+  <link rel="stylesheet" href="style.css?v=20261114_score_cd">
+  <link rel="stylesheet" href="zukan_extra.css?v=20261114_score_cd">
 </head>
 <body>
   <div id="game-wrapper">
@@ -286,6 +286,12 @@
             <span id="tutorial-step-text" class="tutorial-step-text">バナナの皮は「可燃ごみ」！ [Q] を押してみよう！</span>
           </div>
           <button id="tutorial-skip-btn" class="tutorial-skip-btn" title="チュートリアルを終了してタイトルへ">スキップ ✕</button>
+        </div>
+
+        <!-- ステージ開始カウントダウンオーバーレイ（特大迫力演出） -->
+        <div id="countdown-overlay" class="countdown-overlay hidden">
+          <div class="countdown-stage-banner" id="countdown-stage-banner">STAGE 1: スクランブル交差点</div>
+          <div class="countdown-main-num" id="countdown-main-num">3</div>
         </div>
 
         <!-- 中央：出現ゴミステージ -->
@@ -579,7 +585,7 @@
   <script src="zukan_lesson.js?v=zk_1"></script>
   <script src="audio.js?v=wide_11"></script>
   <script src="relics.js?v=wide_11"></script>
-  <script src="game.js?v=wide_11"></script>
+  <script src="game.js?v=20261114_score_cd"></script>
 </body>
 </html>
 

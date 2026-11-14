@@ -501,6 +501,94 @@ body {
   box-shadow: 0 -2px 0 0 #4a4272, 0 2px 0 0 #4a4272, -2px 0 0 0 #4a4272, 2px 0 0 0 #4a4272;
 }
 
+/* ================= カウントダウンオーバーレイ（特大迫力演出） ================= */
+.countdown-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(10, 8, 24, 0.82);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 20px;
+  z-index: 100;
+  pointer-events: all;
+  backdrop-filter: blur(3px);
+}
+
+.countdown-overlay.hidden {
+  display: none !important;
+}
+
+.countdown-stage-banner {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 14px;
+  font-weight: bold;
+  color: #ffd36b;
+  letter-spacing: 0.1em;
+  background: #1e1842;
+  padding: 8px 24px;
+  border-radius: 6px;
+  border: 2px solid #7c6fd6;
+  box-shadow: 0 0 20px rgba(0, 0, 0, 0.8), 0 0 10px rgba(124, 111, 214, 0.5);
+  text-shadow: 2px 2px 0 #000;
+  text-transform: uppercase;
+  animation: banner-glow 1s infinite alternate ease-in-out;
+}
+
+@keyframes banner-glow {
+  from { box-shadow: 0 0 12px rgba(124, 111, 214, 0.4); }
+  to { box-shadow: 0 0 24px rgba(255, 211, 107, 0.6); }
+}
+
+.countdown-main-num {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 80px;
+  font-weight: bold;
+  color: #5eead4;
+  text-shadow: 
+    5px 5px 0 #0f766e,
+    -3px -3px 0 #0f766e,
+    3px -3px 0 #0f766e,
+    -3px 3px 0 #0f766e,
+    0 0 40px rgba(94, 234, 212, 0.9);
+  line-height: 1;
+  user-select: none;
+}
+
+.countdown-main-num.anim-pop {
+  animation: countdown-pop 0.65s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+.countdown-main-num.start {
+  color: #facc15;
+  font-size: 64px;
+  text-shadow: 
+    6px 6px 0 #b45309,
+    -3px -3px 0 #b45309,
+    3px -3px 0 #b45309,
+    -3px 3px 0 #b45309,
+    0 0 50px rgba(250, 204, 21, 1);
+}
+
+@keyframes countdown-pop {
+  0% {
+    transform: scale(1.6);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
 /* ================= 出現ゴミステージ ================= */
 .trash-stage {
   position: absolute;
@@ -585,6 +673,8 @@ body {
   position: absolute;
   right: calc(50% + 55px);
   top: 30px;
+  transform: rotate(-12deg);
+  transform-origin: center right;
   font-family: 'Press Start 2P', monospace;
   font-size: 26px;
   font-weight: bold;
