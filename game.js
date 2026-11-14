@@ -619,13 +619,27 @@ class GomiGame {
       if (count > 0) {
         this.countdownMainNum.textContent = count;
         this.countdownMainNum.classList.add('anim-pop');
-        window.soundManager.playSelect();
+        try {
+          if (window.soundManager && typeof window.soundManager.playCountdown === 'function') {
+            window.soundManager.playCountdown(false);
+          }
+        } catch (e) {
+          console.warn('Countdown audio error:', e);
+        }
         count--;
         this.countdownTimeout = setTimeout(tick, 750);
       } else {
         this.countdownMainNum.textContent = 'START!';
         this.countdownMainNum.classList.add('start', 'anim-pop');
-        window.soundManager.playFever();
+        try {
+          if (window.soundManager && typeof window.soundManager.playCountdown === 'function') {
+            window.soundManager.playCountdown(true);
+          } else if (window.soundManager && typeof window.soundManager.playFever === 'function') {
+            window.soundManager.playFever();
+          }
+        } catch (e) {
+          console.warn('Countdown start audio error:', e);
+        }
         this.countdownTimeout = setTimeout(() => {
           this.countdownOverlay.classList.add('hidden');
           this.isPausedForDraft = false;
