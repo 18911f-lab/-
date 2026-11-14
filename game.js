@@ -544,6 +544,7 @@ class GomiGame {
 
   startGame() {
     window.soundManager.playClick();
+    this.hideRelicTooltip();
     this.isTutorial = false;
     this.isGameOver = false;
     this.isPausedForDraft = false;
@@ -760,6 +761,7 @@ class GomiGame {
 
   showRelicTooltip(title, desc) {
     if (!this.relicTooltip) return;
+    if (this.relicTooltipTimeout) clearTimeout(this.relicTooltipTimeout);
     this.tooltipTitle.textContent = title;
     this.tooltipDesc.textContent = desc;
     this.relicTooltip.classList.remove('hidden');
@@ -767,6 +769,7 @@ class GomiGame {
 
   hideRelicTooltip() {
     if (!this.relicTooltip) return;
+    if (this.relicTooltipTimeout) clearTimeout(this.relicTooltipTimeout);
     this.relicTooltip.classList.add('hidden');
   }
 
@@ -1603,6 +1606,7 @@ class GomiGame {
         this.equippedRelics.push(relic.id);
         this.renderRelicSlots();
         this.showRelicTooltip(`獲得: ${relic.name}`, relic.desc);
+        this.relicTooltipTimeout = setTimeout(() => this.hideRelicTooltip(), 2500);
       }
       this.openTutorialSkillGuide();
     };
@@ -1613,6 +1617,7 @@ class GomiGame {
   // チュートリアル詳細解説モーダル：画面2（EPとスキルツリー）
   openTutorialSkillGuide() {
     window.soundManager.playClick();
+    this.hideRelicTooltip();
     if (!this.tutorialGuideModal) return;
 
     this.tutorialGuideHeading.textContent = '🌳 EP（エコポイント）とスキルツリー';
@@ -1659,6 +1664,9 @@ class GomiGame {
     alert('🎉 チュートリアル修了！\n初回ボーナスとして 100 EP を獲得しました！\nタイトル画面の【🌳 スキルツリー】で強化して、全5ステージ制覇を目指しましょう！');
 
     this.isTutorial = false;
+    this.hideRelicTooltip();
+    this.equippedRelics = [];
+    this.renderRelicSlots();
     if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
     if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
     document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
@@ -1667,6 +1675,9 @@ class GomiGame {
 
   skipTutorial() {
     this.isTutorial = false;
+    this.hideRelicTooltip();
+    this.equippedRelics = [];
+    this.renderRelicSlots();
     if (this.tutorialBanner) this.tutorialBanner.classList.add('hidden');
     if (this.tutorialGuideModal) this.tutorialGuideModal.classList.add('hidden');
     document.querySelectorAll('.station-bin-btn').forEach(b => b.classList.remove('tutorial-highlight'));
@@ -1763,6 +1774,7 @@ class GomiGame {
 
   showTitleScreen() {
     window.soundManager.playClick();
+    this.hideRelicTooltip();
     if (this.timerInterval) clearInterval(this.timerInterval);
     if (this.countdownTimeout) clearTimeout(this.countdownTimeout);
     if (this.countdownOverlay) this.countdownOverlay.classList.add('hidden');
@@ -2345,6 +2357,7 @@ class GomiGame {
   }
 
   closeModals() {
+    this.hideRelicTooltip();
     this.zukanModal.classList.add('hidden');
     this.treeModal.classList.add('hidden');
     this.relicDraftModal.classList.add('hidden');
