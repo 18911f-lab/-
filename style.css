@@ -580,16 +580,16 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
-/* スコア（物体付近）・コンボ（右横）・ミス（別位置・赤色）ポップアップ */
+/* スコア（物体の左・斜め右肩上がり）・コンボ（右横）・ミス（別位置・赤色）ポップアップ */
 .score-popup {
   position: absolute;
-  left: 50%;
-  top: 15px;
-  transform: translateX(-50%);
+  right: calc(50% + 55px);
+  top: 30px;
   font-family: 'Press Start 2P', monospace;
   font-size: 26px;
   font-weight: bold;
   color: #5eead4;
+  white-space: nowrap;
   text-shadow: 
     3px 3px 0 #000,
     -2px -2px 0 #000,
@@ -598,24 +598,24 @@ body {
     0 4px 10px rgba(94, 234, 212, 0.6);
   z-index: 50;
   pointer-events: none;
-  animation: score-pop-up 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+  animation: score-pop-up-left 0.55s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
 }
 
-@keyframes score-pop-up {
+@keyframes score-pop-up-left {
   0% {
-    transform: translateX(-50%) translateY(15px) scale(0.6);
+    transform: rotate(-12deg) translateY(12px) scale(0.6);
     opacity: 0;
   }
   30% {
-    transform: translateX(-50%) translateY(-10px) scale(1.25);
+    transform: rotate(-12deg) translateY(-10px) scale(1.25);
     opacity: 1;
   }
   70% {
-    transform: translateX(-50%) translateY(-18px) scale(1.05);
+    transform: rotate(-12deg) translateY(-18px) scale(1.05);
     opacity: 1;
   }
   100% {
-    transform: translateX(-50%) translateY(-26px) scale(0.95);
+    transform: rotate(-12deg) translateY(-26px) scale(0.95);
     opacity: 0;
   }
 }
