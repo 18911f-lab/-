@@ -1,0 +1,249 @@
+/* ゴミ図鑑の詳細カード・ゲームオーバーの学びパネル用の追加スタイル
+   （style.css は変更せず、このファイルだけで上書き・追加する） */
+
+/* ---------- 共通：学びブロック ---------- */
+.lesson-answer-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+.lesson-pill {
+  display: inline-block;
+  font-size: 12px;
+  font-weight: bold;
+  padding: 3px 8px;
+  border-radius: 4px;
+  border: 2px solid transparent;
+  line-height: 1.3;
+}
+.lesson-pill-ok { color: #fff; }
+.lesson-pill-wrong {
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  text-decoration: line-through;
+  text-decoration-thickness: 1.5px;
+}
+.lesson-arrow { color: #94a3b8; font-size: 12px; }
+.lesson-note {
+  font-size: 12px;
+  line-height: 1.55;
+  color: #e9e4ff;
+  margin: 4px 0;
+}
+.lesson-tags { display: flex; flex-wrap: wrap; gap: 4px; margin: 4px 0; }
+.lesson-tag {
+  font-size: 10.5px;
+  line-height: 1.3;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(94, 234, 212, 0.12);
+  border: 1px solid rgba(94, 234, 212, 0.35);
+  color: #a7f3d0;
+}
+.lesson-tip {
+  font-size: 12px;
+  line-height: 1.55;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-left: 3px solid #ffd36b;
+  background: rgba(255, 211, 107, 0.08);
+  color: #fef3c7;
+}
+
+/* ---------- ゲームオーバー画面の学びパネル（スライド式） ---------- */
+.lesson-box {
+  margin: 10px 0 8px;
+  padding: 10px 14px;
+  text-align: left;
+  border: 2px solid #5eead4;
+  background: rgba(10, 8, 24, 0.95);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
+  width: 100%;
+  box-sizing: border-box;
+}
+.lesson-box.hidden { display: none; }
+.lesson-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed #4a4780;
+}
+.lesson-box-title {
+  font-size: 11px;
+  color: #5eead4;
+  letter-spacing: 0.05em;
+  font-weight: bold;
+}
+.lesson-page-indicator {
+  font-size: 10px;
+  color: #ffd36b;
+  font-family: 'Press Start 2P', monospace;
+  background: rgba(255, 211, 107, 0.12);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 211, 107, 0.3);
+}
+.lesson-card-content {
+  min-height: 120px;
+}
+.lesson-main-item {
+  font-size: 15px;
+  font-weight: bold;
+  color: #fff;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.lesson-main-item small { font-weight: normal; color: #c9bff0; font-size: 11px; }
+
+/* スライドナビゲーションボタン */
+.lesson-nav-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #4a4780;
+}
+.lesson-nav-btn {
+  background: #231d4d;
+  color: #ffd36b;
+  border: 1px solid #7c6fd6;
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: bold;
+  cursor: pointer;
+  border-radius: 4px;
+  transition: all 0.15s;
+  font-family: 'DotGothic16', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.lesson-nav-btn:hover:not(:disabled) {
+  background: #392d7a;
+  border-color: #ffd36b;
+  color: #fff;
+  transform: translateY(-1px);
+}
+.lesson-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+  border-color: #4a4780;
+  color: #64748b;
+  background: transparent;
+}
+.lesson-nav-dots {
+  display: flex;
+  gap: 5px;
+  align-items: center;
+}
+.lesson-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #4a4780;
+  transition: background 0.2s, transform 0.2s;
+}
+.lesson-dot.active {
+  background: #5eead4;
+  transform: scale(1.3);
+}
+
+/* ---------- 図鑑カード（詳細展開型） ---------- */
+.zukan-card-row.zukan-card-v2 {
+  display: block;
+  cursor: pointer;
+}
+.zukan-card-row.zukan-card-v2.locked { cursor: default; }
+.zukan-card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.zukan-card-head .zukan-item-icon { flex: 0 0 auto; }
+.zukan-card-title {
+  flex: 1;
+  min-width: 0;
+}
+.zukan-card-name {
+  font-size: 14px;
+  font-weight: bold;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+.zukan-badge {
+  font-size: 10px;
+  padding: 2px 6px;
+  border-radius: 4px;
+  color: #fff;
+}
+.zukan-badge-rank { color: #000; }
+.zukan-badge-weak {
+  background: #ef4444;
+  animation: none;
+}
+.zukan-card-sub {
+  font-size: 11px;
+  color: #c9bff0;
+  margin-top: 2px;
+}
+.zukan-card-chevron {
+  flex: 0 0 auto;
+  color: #94a3b8;
+  font-size: 11px;
+  transition: transform 0.12s steps(2);
+}
+.zukan-card-v2.open .zukan-card-chevron { transform: rotate(90deg); }
+.zukan-card-detail {
+  display: none;
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-top: 1px dashed #4a4780;
+}
+.zukan-card-v2.open .zukan-card-detail { display: block; }
+.zukan-stat-line {
+  font-size: 11px;
+  color: #94a3b8;
+  margin-top: 6px;
+}
+.zukan-miss-block {
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px dashed #4a4780;
+}
+.zukan-miss-title {
+  font-size: 11px;
+  color: #fca5a5;
+  margin-bottom: 4px;
+}
+
+/* 今回のミスを見ているときの帯 */
+.zukan-run-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  color: #fecaca;
+  background: rgba(239, 68, 68, 0.12);
+  border: 1px solid rgba(239, 68, 68, 0.4);
+}
+.zukan-run-banner button {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 3px 8px;
+  cursor: pointer;
+  color: #fff;
+  background: #4a4780;
+  border: 1px solid #8f76d6;
+}

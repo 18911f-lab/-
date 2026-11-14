@@ -172,6 +172,31 @@ class SoundManager {
     osc.start(now);
     osc.stop(now + 0.05);
   }
+
+  // カウントダウン音（ピッ／ピーン！）
+  playCountdown(isStart = false) {
+    if (!this.enabled) return;
+    this.init();
+    if (!this.ctx) return;
+
+    const now = this.ctx.currentTime;
+    const osc = this.ctx.createOscillator();
+    const gain = this.ctx.createGain();
+
+    osc.type = isStart ? 'triangle' : 'sine';
+    const freq = isStart ? 880 : 440; // スタート時は高音ラ(A5)、通常は中音ラ(A4)
+    osc.frequency.setValueAtTime(freq, now);
+
+    const dur = isStart ? 0.35 : 0.15;
+    gain.gain.setValueAtTime(0.12, now);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + dur);
+
+    osc.connect(gain);
+    gain.connect(this.ctx.destination);
+
+    osc.start(now);
+    osc.stop(now + dur);
+  }
 }
 
 window.soundManager = new SoundManager();

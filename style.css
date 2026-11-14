@@ -1,4 +1,4 @@
-﻿@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=DotGothic16&family=Press+Start+2P&display=swap');
 
 :root {
   --bg-dark: #070512;
@@ -222,6 +222,7 @@ body {
 }
 
 .pixel-btn-green { background: #10b981; color: #fff; box-shadow: 0 -3px 0 0 #047857, 0 3px 0 0 #047857, -3px 0 0 0 #047857, 3px 0 0 0 #047857; }
+.pixel-btn-cyan { background: #06b6d4; color: #fff; box-shadow: 0 -3px 0 0 #0891b2, 0 3px 0 0 #0891b2, -3px 0 0 0 #0891b2, 3px 0 0 0 #0891b2; }
 .pixel-btn-blue { background: #3b82f6; color: #fff; box-shadow: 0 -3px 0 0 #1d4ed8, 0 3px 0 0 #1d4ed8, -3px 0 0 0 #1d4ed8, 3px 0 0 0 #1d4ed8; }
 .pixel-btn-yellow { background: #f59e0b; color: #fff; box-shadow: 0 -3px 0 0 #b45309, 0 3px 0 0 #b45309, -3px 0 0 0 #b45309, 3px 0 0 0 #b45309; }
 .pixel-btn-purple { background: #a855f7; color: #fff; box-shadow: 0 -3px 0 0 #7e22ce, 0 3px 0 0 #7e22ce, -3px 0 0 0 #7e22ce, 3px 0 0 0 #7e22ce; }
@@ -579,31 +580,69 @@ body {
   text-shadow: 2px 2px 0 #000;
 }
 
-/* スコア（左横）・コンボ（右横）・ミス（別位置・赤色）ポップアップ */
+/* スコア（物体付近）・コンボ（右横）・ミス（別位置・赤色）ポップアップ */
 .score-popup {
   position: absolute;
-  left: 170px;
-  top: 55px;
+  left: 50%;
+  top: 15px;
+  transform: translateX(-50%);
   font-family: 'Press Start 2P', monospace;
-  font-size: 18px;
+  font-size: 26px;
+  font-weight: bold;
   color: #5eead4;
-  transform: rotate(4deg);
-  text-shadow: 2px 2px 0 #000, -1px -1px 0 #000;
-  z-index: 45;
-  animation: pop-bounce 0.2s steps(2);
+  text-shadow: 
+    3px 3px 0 #000,
+    -2px -2px 0 #000,
+    2px -2px 0 #000,
+    -2px 2px 0 #000,
+    0 4px 10px rgba(94, 234, 212, 0.6);
+  z-index: 50;
+  pointer-events: none;
+  animation: score-pop-up 0.5s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+@keyframes score-pop-up {
+  0% {
+    transform: translateX(-50%) translateY(15px) scale(0.6);
+    opacity: 0;
+  }
+  30% {
+    transform: translateX(-50%) translateY(-10px) scale(1.25);
+    opacity: 1;
+  }
+  70% {
+    transform: translateX(-50%) translateY(-18px) scale(1.05);
+    opacity: 1;
+  }
+  100% {
+    transform: translateX(-50%) translateY(-26px) scale(0.95);
+    opacity: 0;
+  }
 }
 
 .combo-banner {
   position: absolute;
-  right: 150px;
-  top: 35px;
+  left: calc(50% + 75px);
+  top: 30px;
   font-family: 'Press Start 2P', monospace;
-  font-size: 20px;
+  font-size: 22px;
   color: #ffd36b;
   transform: rotate(-6deg);
-  text-shadow: 2px 2px 0 #7c1d3a, -2px 2px 0 #7c1d3a, 2px -2px 0 #7c1d3a, -2px -2px 0 #7c1d3a, 0 4px 0 #3a0d1c;
-  z-index: 45;
-  animation: pop-bounce 0.2s steps(2);
+  text-shadow: 
+    2px 2px 0 #7c1d3a, 
+    -2px 2px 0 #7c1d3a, 
+    2px -2px 0 #7c1d3a, 
+    -2px -2px 0 #7c1d3a, 
+    0 4px 8px rgba(0, 0, 0, 0.8);
+  z-index: 50;
+  pointer-events: none;
+  animation: combo-bounce 0.4s ease-out forwards;
+}
+
+@keyframes combo-bounce {
+  0% { transform: scale(0.5) rotate(-12deg); opacity: 0; }
+  50% { transform: scale(1.2) rotate(-4deg); opacity: 1; }
+  100% { transform: scale(1) rotate(-6deg); opacity: 1; }
 }
 
 .miss-popup-banner {
@@ -726,6 +765,88 @@ body {
 
 .dragon-station-btn:hover .station-dragon-img {
   transform: scale(1.1) rotate(-4deg);
+}
+
+/* ===== 装備編集モーダル ===== */
+.equip-modal-body {
+  padding: 12px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.equip-slot-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(167,139,250,0.2);
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.equip-slot-index {
+  font-size: 11px;
+  color: #94a3b8;
+  font-family: 'Press Start 2P', monospace;
+  min-width: 20px;
+}
+.equip-slot-visual {
+  font-size: 26px;
+  min-width: 36px;
+  text-align: center;
+}
+.equip-slot-info {
+  flex: 1;
+}
+.equip-slot-name {
+  font-size: 12px;
+  font-weight: bold;
+  color: #e2e8f0;
+  margin-bottom: 2px;
+}
+.equip-slot-desc {
+  font-size: 10px;
+  color: #94a3b8;
+  line-height: 1.4;
+}
+.equip-slot-empty {
+  font-size: 11px;
+  color: #4a4272;
+}
+.equip-remove-btn {
+  background: rgba(239,68,68,0.15);
+  border: 1px solid rgba(239,68,68,0.4);
+  color: #f87171;
+  font-size: 11px;
+  padding: 4px 8px;
+  cursor: pointer;
+  border-radius: 4px;
+  font-family: 'Press Start 2P', monospace;
+  transition: background 0.15s;
+  white-space: nowrap;
+}
+.equip-remove-btn:hover {
+  background: rgba(239,68,68,0.3);
+}
+.equip-locked-slot {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(100,100,120,0.3);
+  border-radius: 6px;
+  padding: 8px 12px;
+  opacity: 0.5;
+}
+.equip-modal-hint {
+  font-size: 10px;
+  color: #64748b;
+  text-align: center;
+  margin-top: 4px;
+  line-height: 1.6;
+}
+.equip-modal-open-btn {
+  align-self: center;
+  margin-top: 4px;
 }
 
 .dragon-plate-box {
@@ -1514,3 +1635,187 @@ body {
 .skill-confirm-btn:active {
   transform: translateY(1px);
 }
+
+/* ================= チュートリアル＆アイテム（レリック）追加スタイル ================= */
+.tutorial-banner {
+  position: absolute;
+  top: 48px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 90%;
+  max-width: 580px;
+  background: rgba(15, 23, 42, 0.95);
+  border: 2px solid #38bdf8;
+  box-shadow: 0 0 15px rgba(56, 189, 248, 0.4), inset 0 0 8px rgba(56, 189, 248, 0.2);
+  padding: 8px 14px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+  animation: pulseBanner 2s infinite ease-in-out;
+}
+
+@keyframes pulseBanner {
+  0%, 100% { border-color: #38bdf8; }
+  50% { border-color: #818cf8; }
+}
+
+.tutorial-banner-content {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.tutorial-badge {
+  background: #0284c7;
+  color: #fff;
+  font-size: 11px;
+  font-weight: bold;
+  padding: 3px 7px;
+  border-radius: 4px;
+  border: 1px solid #7dd3fc;
+  white-space: nowrap;
+}
+
+.tutorial-step-text {
+  font-size: 13px;
+  color: #f0f9ff;
+  line-height: 1.4;
+  font-weight: 500;
+}
+
+.tutorial-skip-btn {
+  background: #334155;
+  color: #94a3b8;
+  border: 1px solid #475569;
+  font-size: 11px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: all 0.15s ease;
+}
+
+.tutorial-skip-btn:hover {
+  background: #475569;
+  color: #fff;
+}
+
+/* チュートリアル時のボタン点滅ハイライト（目に優しい控えめな光） */
+.tutorial-highlight {
+  animation: tutorialGentlePulse 1.2s infinite alternate ease-in-out !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4), inset 0 0 5px rgba(56, 189, 248, 0.2) !important;
+  border-color: #38bdf8 !important;
+  transform: translateY(-2px) !important;
+  z-index: 40 !important;
+}
+
+@keyframes tutorialGentlePulse {
+  0% {
+    box-shadow: 0 0 4px rgba(56, 189, 248, 0.2), inset 0 0 2px rgba(56, 189, 248, 0.1);
+    filter: brightness(1.0);
+  }
+  100% {
+    box-shadow: 0 0 10px rgba(56, 189, 248, 0.5), inset 0 0 6px rgba(56, 189, 248, 0.3);
+    filter: brightness(1.1);
+  }
+}
+
+/* タイトル画面のチュートリアル推奨枠（控えめな枠線パルス） */
+.tutorial-btn-glow {
+  position: relative;
+  border-color: #38bdf8 !important;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4) !important;
+}
+
+/* チュートリアル解説モーダル専用スタイル */
+.tutorial-modal-card {
+  background: rgba(22, 27, 46, 0.95);
+  border: 2px solid #38bdf8;
+  border-radius: 8px;
+  padding: 16px 20px;
+  color: #f1f5f9;
+  text-align: left;
+  line-height: 1.6;
+}
+
+.tutorial-modal-section {
+  margin-bottom: 14px;
+  padding-bottom: 12px;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.15);
+}
+
+.tutorial-modal-section:last-child {
+  margin-bottom: 0;
+  padding-bottom: 0;
+  border-bottom: none;
+}
+
+.tutorial-modal-title {
+  font-size: 15px;
+  font-weight: bold;
+  color: #38bdf8;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tutorial-modal-desc {
+  font-size: 12px;
+  color: #cbd5e1;
+}
+
+.tutorial-modal-btn-row {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 14px;
+}
+
+/* レリックの絵文字表示 */
+.relic-slot-emoji {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  user-select: none;
+}
+
+.draft-card-emoji {
+  font-size: 38px;
+  margin-bottom: 8px;
+  display: block;
+}
+
+/* ステージクリア トランジション幕 */
+.stage-clear-announcement {
+  position: absolute;
+  top: 40%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  background: rgba(15, 23, 42, 0.95);
+  border: 3px solid #facc15;
+  box-shadow: 0 0 30px rgba(250, 204, 21, 0.6);
+  padding: 16px 28px;
+  text-align: center;
+  z-index: 100;
+  border-radius: 8px;
+  animation: popIn 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.stage-clear-title {
+  font-family: 'Press Start 2P', monospace;
+  font-size: 20px;
+  color: #facc15;
+  text-shadow: 2px 2px #000;
+  margin-bottom: 6px;
+}
+
+.stage-clear-sub {
+  font-size: 13px;
+  color: #e2e8f0;
+}
+
